@@ -1,0 +1,94 @@
+# Verifica magazine — 4 ottobre 2026
+
+Base: `4e1e976eeb6eb10be20e08d33ca5eba322fec3aa`, ultima main ricontrollata.
+
+## Verifiche completate
+
+- 61 pagine, 51 articoli, 5 notizie del 4 ottobre; sitemap con 61 URL distinti; RSS con 5 GUID distinti.
+- Link e ancore interne, asset, canonical, Open Graph/Twitter, JSON-LD, manifest, ID senza duplicazioni.
+- Edge: 61 pagine a 1440 e 390 px senza overflow; zero errori JavaScript.
+- Filtri macro/sottocategoria, ricerca archivio, cambio vista e caricamento progressivo.
+- Ricerca globale per titolo, categoria, sottocategoria e descrizione, risultati vuoti, altri risultati, scorciatoie e focus dopo Esc.
+- Ultimi: 5 notizie reali; fixture di 30 card per caricamento 12 → 24 → 30.
+- Screenshot desktop/mobile di home, Ultimi e articolo, ricerca desktop; controllo visivo.
+- Corpo originale dei 51 articoli e fonti preservati (solo ID aggiunti agli h2); testo legale privacy/cookie e ads.txt preservati.
+- AdSense presente una volta per pagina; rete pubblicitaria bloccata nei test locali, erogazione live non verificata.
+- Rigenerazione byte-identica, sintassi JavaScript valida e diff senza whitespace errato.
+- Nessuna automazione editoriale modificata.
+
+## File modificati o aggiunti
+
+- `README.md`
+- `VALIDATION.md`
+- `articles.json`
+- `articoli/adattamenti-manga-videogiochi-cinema.html`
+- `articoli/aggiornamenti-sicurezza.html`
+- `articoli/ai-dati-personali-privacy.html`
+- `articoli/anime-manga-light-novel-differenze.html`
+- `articoli/anime-sub-dub.html`
+- `articoli/backup-321.html`
+- `articoli/backup-smartphone.html`
+- `articoli/batteria-smartphone-durata.html`
+- `articoli/blue-box-stagione-2-netflix.html`
+- `articoli/box-o-singole-tcg.html`
+- `articoli/cloud-o-backup.html`
+- `articoli/comprare-elettronica-usata-controlli.html`
+- `articoli/conservare-figure-statue.html`
+- `articoli/conservare-manga.html`
+- `articoli/controller-stick-drift-cura.html`
+- `articoli/dominio-dns-hosting.html`
+- `articoli/edizioni-manga-come-scegliere.html`
+- `articoli/fiere-comics-tcg-prepararsi.html`
+- `articoli/filler-canon-anime.html`
+- `articoli/gestire-abbonamenti-streaming.html`
+- `articoli/giochi-digitali-o-fisici.html`
+- `articoli/grading-carte-quando-conviene.html`
+- `articoli/hdr10-dolby-vision-differenze.html`
+- `articoli/https-certificato.html`
+- `articoli/iniziare-anime.html`
+- `articoli/iniziare-manga.html`
+- `articoli/inventario-collezione-digitale.html`
+- `articoli/monitor-gaming-refresh-rate.html`
+- `articoli/netflix-ottobre-2026-cosa-guardare.html`
+- `articoli/one-piece-tcg-codici-carte.html`
+- `articoli/openai-devday-2026-novita.html`
+- `articoli/ordine-lettura-manga-spin-off.html`
+- `articoli/password-mfa.html`
+- `articoli/pc-gaming-requisiti-grafici.html`
+- `articoli/pc-o-console-come-scegliere.html`
+- `articoli/permessi-app-privacy.html`
+- `articoli/phishing.html`
+- `articoli/pokemon-tcg-codici-set-carte.html`
+- `articoli/pokemon-tcg-uscite-ottobre-2026.html`
+- `articoli/prompt-ai-risultati-migliori.html`
+- `articoli/proteggere-carte-tcg.html`
+- `articoli/ps5-qssr-ai-upscaling.html`
+- `articoli/ram-pc-quanta-serve.html`
+- `articoli/retrogaming-conservare-console.html`
+- `articoli/riconoscere-carte-tcg-sospette.html`
+- `articoli/salvataggi-cloud-backup-videogiochi.html`
+- `articoli/simulcast-anime-significato.html`
+- `articoli/ssd-nvme-sata-differenze.html`
+- `articoli/streaming-4k-hdr-bitrate.html`
+- `articoli/vpn-cosa-fa.html`
+- `articoli/wifi-casa.html`
+- `categorie/anime-manga.html`
+- `categorie/cinema-streaming.html`
+- `categorie/collezionismo.html`
+- `categorie/gaming.html`
+- `categorie/tecnologia.html`
+- `chi-siamo.html`
+- `cookie.html`
+- `favicon.svg`
+- `feed.xml`
+- `index.html`
+- `privacy.html`
+- `script.js`
+- `site.webmanifest`
+- `sitemap.xml`
+- `social-card.png`
+- `social-card.svg`
+- `styles.css`
+- `tools/build_site.py`
+- `tools/validate_site.py`
+- `ultimi.html`
