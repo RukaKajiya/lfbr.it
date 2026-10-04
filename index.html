@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LFBR — Tecnologia pratica, senza complicazioni</title>
-  <meta name="description" content="Guide semplici e concrete su sicurezza digitale, web, backup, account e strumenti online.">
+  <title>LFBR — Tecnologia, videogiochi, anime, TCG e manga</title>
+  <meta name="description" content="Guide e articoli su tecnologia, videogiochi, anime, giochi di carte collezionabili e manga. Contenuti chiari, aggiornati e facili da trovare.">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://lfbr.it/">
   <link rel="stylesheet" href="styles.css">
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244616248346330" crossorigin="anonymous"></script>
+  <script defer src="script.js"></script>
 </head>
 <body>
 <div class="site">
@@ -18,66 +19,107 @@
     <span>LFBR</span>
   </a>
   <nav>
-    <a href="index.html#guide">Guide</a>
+    <a href="#articoli">Articoli</a>
+    <a href="#categorie">Categorie</a>
     <a href="chi-siamo.html">Chi siamo</a>
     <a href="privacy.html">Privacy</a>
   </nav>
 </header>
+
 <main>
 <section class="hero">
   <div>
-    <span class="eyebrow">Tecnologia pratica</span>
-    <h1>Capire il digitale, senza perdersi nei tecnicismi.</h1>
-    <p class="lead">Guide chiare su sicurezza, web e strumenti digitali: pochi concetti, spiegati bene, da applicare davvero.</p>
+    <span class="eyebrow">LFBR Magazine</span>
+    <h1>Tecnologia e cultura pop, senza rumore.</h1>
+    <p class="lead">Guide pratiche, novità selezionate e approfondimenti su tecnologia, videogiochi, anime, TCG e manga.</p>
+    <div class="hero-actions">
+      <a class="primary-btn" href="#articoli">Esplora gli articoli</a>
+      <a class="secondary-btn" href="#categorie">Sfoglia per categoria</a>
+    </div>
   </div>
   <aside class="hero-card">
-    <small>Metodo LFBR</small>
-    <strong>Prima capire. Poi scegliere.</strong>
-    <p>Niente liste infinite di prodotti o promesse facili: partiamo dai concetti che servono per prendere decisioni migliori.</p>
+    <small>Linea editoriale</small>
+    <strong>Meno quantità, più utilità.</strong>
+    <p>Gli articoli recenti vengono selezionati solo quando c’è qualcosa di concreto da raccontare. Le guide restano disponibili come riferimento nel tempo.</p>
   </aside>
 </section>
 
-<section class="topics">
-  <article class="topic"><span>01</span><h2>Sicurezza</h2><p>Account, password, phishing e protezione dei dati personali.</p></article>
-  <article class="topic"><span>02</span><h2>Web</h2><p>Dominio, DNS, hosting e servizi online spiegati in modo semplice.</p></article>
-  <article class="topic"><span>03</span><h2>Dati</h2><p>Backup, cloud e organizzazione dei file senza complicazioni.</p></article>
+<section class="section compact-section" id="categorie">
+  <div class="section-head">
+    <div><span class="eyebrow">Categorie</span><h2>Scegli cosa seguire</h2></div>
+    <p>Cinque aree principali, con articoli filtrabili dalla home.</p>
+  </div>
+  <div class="category-grid">
+    <button class="category-card category-filter" type="button" data-filter="tecnologia">
+      <span class="category-icon">⌘</span><strong>Tecnologia</strong><small>Web, sicurezza, dispositivi e strumenti digitali.</small>
+    </button>
+    <button class="category-card category-filter" type="button" data-filter="videogiochi">
+      <span class="category-icon">◈</span><strong>Videogiochi</strong><small>Uscite, aggiornamenti, hardware e approfondimenti.</small>
+    </button>
+    <button class="category-card category-filter" type="button" data-filter="anime">
+      <span class="category-icon">◇</span><strong>Anime</strong><small>Annunci, stagioni, adattamenti e novità.</small>
+    </button>
+    <button class="category-card category-filter" type="button" data-filter="tcg">
+      <span class="category-icon">▣</span><strong>TCG</strong><small>Pokémon, One Piece e altri giochi di carte.</small>
+    </button>
+    <button class="category-card category-filter" type="button" data-filter="manga">
+      <span class="category-icon">▤</span><strong>Manga</strong><small>Nuove serie, volumi, edizioni e adattamenti.</small>
+    </button>
+  </div>
 </section>
 
-<section class="section" id="guide">
-  <div class="section-head">
-    <div><span class="eyebrow">Guide</span><h2>Parti da qui</h2></div>
-    <p>Contenuti originali pensati per chi usa la tecnologia ogni giorno ma non vuole trasformarsi in un tecnico.</p>
+<section class="section" id="articoli">
+  <div class="section-head article-heading">
+    <div><span class="eyebrow">Archivio</span><h2>Articoli e guide</h2></div>
+    <p id="resultCount" aria-live="polite">10 contenuti disponibili</p>
   </div>
-  <div class="guide-grid">
-    <a class="guide-card" href="articoli/password-mfa.html"><span class="tag">Sicurezza</span><h3>Password, passkey e MFA: cosa serve davvero</h3><p>Una guida pratica per proteggere gli account senza complicare inutilmente l’accesso.</p><span class="read">Leggi la guida →</span></a>
-    <a class="guide-card" href="articoli/phishing.html"><span class="tag">Sicurezza</span><h3>Come riconoscere un tentativo di phishing</h3><p>I segnali più utili da controllare prima di cliccare, inserire credenziali o autorizzare un pagamento.</p><span class="read">Leggi la guida →</span></a>
-    <a class="guide-card" href="articoli/backup-321.html"><span class="tag">Dati</span><h3>Backup 3-2-1: una regola semplice che funziona</h3><p>Come evitare che un guasto, un errore o un furto cancellino l’unica copia dei tuoi file.</p><span class="read">Leggi la guida →</span></a>
-    <a class="guide-card" href="articoli/cloud-o-backup.html"><span class="tag">Dati</span><h3>Cloud e backup non sono la stessa cosa</h3><p>Sincronizzare i file è comodo, ma non sempre equivale ad avere una vera copia di sicurezza.</p><span class="read">Leggi la guida →</span></a>
-    <a class="guide-card" href="articoli/dominio-dns-hosting.html"><span class="tag">Web</span><h3>Dominio, DNS e hosting: cosa cambia</h3><p>Tre concetti spesso confusi che diventano semplici appena li separi nel modo giusto.</p><span class="read">Leggi la guida →</span></a>
-    <a class="guide-card" href="articoli/wifi-casa.html"><span class="tag">Rete</span><h3>Wi-Fi di casa: 7 controlli utili da fare</h3><p>Impostazioni semplici per migliorare sicurezza e affidabilità della rete domestica.</p><span class="read">Leggi la guida →</span></a>
-    <a class="guide-card" href="articoli/vpn-cosa-fa.html"><span class="tag">Sicurezza</span><h3>VPN: cosa fa davvero e cosa non può fare</h3><p>Quando una VPN è utile, quali dati protegge e perché non equivale all'anonimato online.</p><span class="read">Leggi la guida →</span></a>
-    <a class="guide-card" href="articoli/https-certificato.html"><span class="tag">Web</span><h3>HTTPS e certificato SSL: cosa proteggono davvero</h3><p>Che cosa garantisce il lucchetto del browser e perché non basta da solo a rendere affidabile un sito.</p><span class="read">Leggi la guida →</span></a>
-    <a class="guide-card" href="articoli/aggiornamenti-sicurezza.html"><span class="tag">Sicurezza</span><h3>Aggiornamenti di sicurezza: perché non rimandarli</h3><p>Una routine semplice per ridurre il tempo in cui dispositivi e programmi restano esposti a vulnerabilità note.</p><span class="read">Leggi la guida →</span></a>
-    <a class="guide-card" href="articoli/backup-smartphone.html"><span class="tag">Dati</span><h3>Backup dello smartphone: cosa proteggere</h3><p>Foto, contatti, documenti e dati delle app: come evitare che tutto dipenda da un solo telefono.</p><span class="read">Leggi la guida →</span></a>
+
+  <div class="content-toolbar" role="search">
+    <label class="search-box" for="articleSearch">
+      <span aria-hidden="true">⌕</span>
+      <input id="articleSearch" type="search" placeholder="Cerca un articolo..." autocomplete="off">
+    </label>
+    <div class="filter-row" aria-label="Filtra per categoria">
+      <button class="filter-btn active" type="button" data-filter="all">Tutti</button>
+      <button class="filter-btn" type="button" data-filter="tecnologia">Tecnologia</button>
+      <button class="filter-btn" type="button" data-filter="videogiochi">Videogiochi</button>
+      <button class="filter-btn" type="button" data-filter="anime">Anime</button>
+      <button class="filter-btn" type="button" data-filter="tcg">TCG</button>
+      <button class="filter-btn" type="button" data-filter="manga">Manga</button>
+    </div>
+  </div>
+
+  <div class="guide-grid" id="articleGrid">
+    <a class="guide-card" data-category="tecnologia" href="articoli/aggiornamenti-sicurezza.html"><div class="card-top"><span class="tag">Tecnologia</span><span class="content-type">Guida</span></div><h3>Aggiornamenti di sicurezza: perché non rimandarli</h3><p>Una routine semplice per ridurre il tempo in cui dispositivi e programmi restano esposti a vulnerabilità note.</p><span class="read">Leggi →</span></a>
+    <a class="guide-card" data-category="tecnologia" href="articoli/backup-smartphone.html"><div class="card-top"><span class="tag">Tecnologia</span><span class="content-type">Guida</span></div><h3>Backup dello smartphone: cosa proteggere</h3><p>Foto, contatti, documenti e dati delle app: come evitare che tutto dipenda da un solo telefono.</p><span class="read">Leggi →</span></a>
+    <a class="guide-card" data-category="tecnologia" href="articoli/vpn-cosa-fa.html"><div class="card-top"><span class="tag">Tecnologia</span><span class="content-type">Guida</span></div><h3>VPN: cosa fa davvero e cosa non può fare</h3><p>Quando una VPN è utile, quali dati protegge e perché non equivale all'anonimato online.</p><span class="read">Leggi →</span></a>
+    <a class="guide-card" data-category="tecnologia" href="articoli/https-certificato.html"><div class="card-top"><span class="tag">Tecnologia</span><span class="content-type">Guida</span></div><h3>HTTPS e certificato SSL: cosa proteggono davvero</h3><p>Che cosa garantisce il lucchetto del browser e perché non basta da solo a rendere affidabile un sito.</p><span class="read">Leggi →</span></a>
+    <a class="guide-card" data-category="tecnologia" href="articoli/password-mfa.html"><div class="card-top"><span class="tag">Tecnologia</span><span class="content-type">Guida</span></div><h3>Password, passkey e MFA: cosa serve davvero</h3><p>Una guida pratica per proteggere gli account senza complicare inutilmente l’accesso.</p><span class="read">Leggi →</span></a>
+    <a class="guide-card" data-category="tecnologia" href="articoli/phishing.html"><div class="card-top"><span class="tag">Tecnologia</span><span class="content-type">Guida</span></div><h3>Come riconoscere un tentativo di phishing</h3><p>I segnali più utili da controllare prima di cliccare, inserire credenziali o autorizzare un pagamento.</p><span class="read">Leggi →</span></a>
+    <a class="guide-card" data-category="tecnologia" href="articoli/backup-321.html"><div class="card-top"><span class="tag">Tecnologia</span><span class="content-type">Guida</span></div><h3>Backup 3-2-1: una regola semplice che funziona</h3><p>Come evitare che un guasto, un errore o un furto cancellino l’unica copia dei tuoi file.</p><span class="read">Leggi →</span></a>
+    <a class="guide-card" data-category="tecnologia" href="articoli/cloud-o-backup.html"><div class="card-top"><span class="tag">Tecnologia</span><span class="content-type">Guida</span></div><h3>Cloud e backup non sono la stessa cosa</h3><p>Sincronizzare i file è comodo, ma non sempre equivale ad avere una vera copia di sicurezza.</p><span class="read">Leggi →</span></a>
+    <a class="guide-card" data-category="tecnologia" href="articoli/dominio-dns-hosting.html"><div class="card-top"><span class="tag">Tecnologia</span><span class="content-type">Guida</span></div><h3>Dominio, DNS e hosting: cosa cambia</h3><p>Tre concetti spesso confusi che diventano semplici appena li separi nel modo giusto.</p><span class="read">Leggi →</span></a>
+    <a class="guide-card" data-category="tecnologia" href="articoli/wifi-casa.html"><div class="card-top"><span class="tag">Tecnologia</span><span class="content-type">Guida</span></div><h3>Wi-Fi di casa: 7 controlli utili da fare</h3><p>Impostazioni semplici per migliorare sicurezza e affidabilità della rete domestica.</p><span class="read">Leggi →</span></a>
+  </div>
+
+  <div class="empty-state" id="emptyState" hidden>
+    <strong>Nessun articolo trovato.</strong>
+    <p>Questa categoria verrà popolata con i prossimi aggiornamenti editoriali.</p>
+    <button type="button" id="resetFilters">Mostra tutti</button>
   </div>
 </section>
 
 <section class="about-strip">
-  <div><span class="eyebrow">LFBR</span><h2>Contenuti semplici, non superficiali.</h2></div>
-  <p>L’obiettivo è tradurre argomenti tecnici in decisioni concrete. Le guide spiegano il perché delle cose, non soltanto dove cliccare.</p>
+  <div><span class="eyebrow">LFBR</span><h2>Guide utili e novità selezionate.</h2></div>
+  <p>La tecnologia resta il nucleo storico del sito, affiancata da videogiochi, anime, TCG e manga. Le novità vengono scelte in base alla rilevanza, senza pubblicare per riempire l’archivio.</p>
 </section>
 </main>
+
 <footer class="footer">
-  <div>
-    <strong>LFBR</strong>
-    <p>Guide semplici per usare meglio la tecnologia di tutti i giorni.</p>
-  </div>
-  <div class="footer-links">
-    <a href="chi-siamo.html">Chi siamo</a>
-    <a href="privacy.html">Privacy</a>
-    <a href="cookie.html">Cookie</a>
-  </div>
+  <div><strong>LFBR</strong><p>Tecnologia, videogiochi, anime, TCG e manga.</p></div>
+  <div class="footer-links"><a href="chi-siamo.html">Chi siamo</a><a href="privacy.html">Privacy</a><a href="cookie.html">Cookie</a></div>
   <p class="copyright">© 2026 LFBR</p>
 </footer>
 </div>
-</body></html>
+</body>
+</html>
