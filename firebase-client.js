@@ -3,6 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
@@ -10,8 +11,8 @@ import {
   getFirestore,
   doc,
   getDoc,
-  getDocFromServer,
   setDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -19,189 +20,257 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
 
-export const OperationType = {
-  CREATE: 'create',
-  UPDATE: 'update',
-  DELETE: 'delete',
-  LIST: 'list',
-  GET: 'get',
-  WRITE: 'write',
-};
-
 let app = null;
 let auth = null;
 let db = null;
 let currentUser = null;
-let initialized = false;
 let initPromise = null;
 
-export function handleFirestoreError(error, operationType, path) {
-  const errInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth?.currentUser?.uid || null,
-      email: auth?.currentUser?.email || null,
-      emailVerified: auth?.currentUser?.emailVerified || null,
-      isAnonymous: auth?.currentUser?.isAnonymous || null,
-      tenantId: auth?.currentUser?.tenantId || null,
-      providerInfo: auth?.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
-    },
-    operationType,
-    path
+const cleanText = (value, max = 120) => String(value || '').trim().slice(0, max);
+
+function timestampMillis(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (typeof value.seconds === 'number') return value.seconds * 1000;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeTrip(data) {
+  if (!data) return null;
+  return {
+    ...data,
+    createdAtMs: timestampMillis(data.createdAt),
+    updatedAtMs: timestampMillis(data.updatedAt)
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+}
+
+async function ensureReady() {
+  if (initPromise) await initPromise;
+  if (!auth || !db) throw new Error('Firebase non è disponibile. Controlla la configurazione del progetto.');
+}
+
+async function ensureSignedIn() {
+  await ensureReady();
+  if (!auth.currentUser) throw new Error('Accedi con Google per usare il salvataggio Cloud.');
+  return auth.currentUser;
+}
+
+async function syncUserProfile(user) {
+  if (!db || !user) return null;
+  const ref = doc(db, 'users', user.uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      id: user.uid,
+      email: user.email || '',
+      displayName: user.displayName || 'Viaggiatore',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  } else {
+    await setDoc(ref, {
+      email: user.email || '',
+      displayName: user.displayName || 'Viaggiatore',
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  }
+  const updated = await getDoc(ref);
+  return updated.exists() ? updated.data() : null;
 }
 
 async function initFirebase() {
   try {
-    const res = await fetch('/firebase-applet-config.json');
-    if (!res.ok) throw new Error('Could not load firebase-applet-config.json');
-    const config = await res.json();
+    const response = await fetch('/firebase-applet-config.json', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Configurazione Firebase non trovata.');
+    const config = await response.json();
+    if (!config.apiKey || !config.projectId || !config.appId) throw new Error('Configurazione Firebase incompleta.');
 
     app = initializeApp(config);
-    db = config.firestoreDatabaseId ? getFirestore(app, config.firestoreDatabaseId) : getFirestore(app);
     auth = getAuth(app);
-    initialized = true;
+    db = config.firestoreDatabaseId ? getFirestore(app, config.firestoreDatabaseId) : getFirestore(app);
 
-    // Validate Connection to Firestore on boot as required by specification
-    testConnection();
-
-    onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(auth, async user => {
       currentUser = user;
+      let profile = null;
       if (user) {
-        await syncUserProfile(user);
+        try {
+          profile = await syncUserProfile(user);
+        } catch (error) {
+          console.warn('Profilo Firebase non sincronizzato:', error);
+        }
       }
-      window.dispatchEvent(new CustomEvent('lfbr:auth-change', { detail: { user } }));
+      window.dispatchEvent(new CustomEvent('lfbr:auth-change', { detail: { user, profile } }));
     });
-  } catch (err) {
-    console.error('Firebase initialization error:', err);
-  }
-}
 
-async function testConnection() {
-  if (!db) return;
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    window.dispatchEvent(new CustomEvent('lfbr:firebase-ready'));
+    return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Please check your Firebase configuration.');
-    }
-  }
-}
-
-async function syncUserProfile(user) {
-  if (!db || !user) return;
-  const userRef = doc(db, 'users', user.uid);
-  try {
-    const snap = await getDoc(userRef);
-    if (!snap.exists()) {
-      await setDoc(userRef, {
-        id: user.uid,
-        email: user.email || '',
-        displayName: user.displayName || 'Viaggiatore',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-    } else {
-      await setDoc(userRef, {
-        displayName: user.displayName || 'Viaggiatore',
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-    }
-  } catch (err) {
-    console.warn('Sync profilo utente in attesa (database o regole Firestore):', err?.message || err);
+    console.error('Firebase initialization error:', error);
+    window.dispatchEvent(new CustomEvent('lfbr:firebase-error', { detail: { message: error.message } }));
+    return false;
   }
 }
 
 export async function loginWithGoogle() {
-  if (initPromise) await initPromise;
-  if (!auth) throw new Error('Firebase Auth non è ancora inizializzato');
+  await ensureReady();
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
   try {
     return await signInWithPopup(auth, provider);
-  } catch (err) {
-    if (err.code === 'auth/unauthorized-domain') {
-      throw new Error(`Dominio non autorizzato: aggiungi "${window.location.hostname}" nei Domini autorizzati su Firebase Console (Authentication > Settings > Authorized domains).`);
+  } catch (error) {
+    if (['auth/popup-blocked', 'auth/cancelled-popup-request'].includes(error.code)) {
+      await signInWithRedirect(auth, provider);
+      return null;
     }
-    if (err.code === 'auth/operation-not-allowed') {
-      throw new Error('Google Sign-in non abilitato: attivalo su Firebase Console (Authentication > Sign-in method > Google).');
+    if (error.code === 'auth/unauthorized-domain') {
+      throw new Error(`Dominio non autorizzato: aggiungi "${window.location.hostname}" in Firebase Authentication > Settings > Authorized domains.`);
     }
-    if (err.code === 'auth/popup-blocked') {
-      throw new Error('Il browser ha bloccato il popup: consenti i popup per questo sito e riprova.');
+    if (error.code === 'auth/operation-not-allowed') {
+      throw new Error('Abilita Google in Firebase Authentication > Sign-in method.');
     }
-    if (err.code === 'auth/popup-closed-by-user') {
-      throw new Error('Accesso annullato (popup chiuso).');
+    if (error.code === 'auth/popup-closed-by-user') {
+      throw new Error('Accesso annullato.');
     }
-    throw err;
+    throw error;
   }
 }
 
 export async function logoutUser() {
-  if (!auth) return;
-  return signOut(auth);
+  await ensureReady();
+  await signOut(auth);
+}
+
+export async function saveTravelProfile(profile) {
+  const user = await ensureSignedIn();
+  const ref = doc(db, 'users', user.uid);
+  await setDoc(ref, {
+    travelProfile: profile || {},
+    profileUpdatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+  return profile;
+}
+
+export async function loadTravelProfile() {
+  const user = await ensureSignedIn();
+  const snap = await getDoc(doc(db, 'users', user.uid));
+  return snap.exists() ? (snap.data().travelProfile || null) : null;
 }
 
 export async function saveTripToCloud(tripData) {
-  if (!db || !auth?.currentUser) {
-    throw new Error('Devi effettuare il login per salvare nel Cloud');
+  const user = await ensureSignedIn();
+  const existingId = cleanText(tripData?.id, 128);
+  const ref = existingId ? doc(db, 'trips', existingId) : doc(collection(db, 'trips'));
+  const snap = existingId ? await getDoc(ref) : null;
+
+  if (snap?.exists() && snap.data().ownerId !== user.uid) {
+    throw new Error('Non puoi modificare un viaggio appartenente a un altro account.');
   }
 
-  const tripId = tripData.id || ('trip_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6));
-  const tripRef = doc(db, 'trips', tripId);
-  const now = serverTimestamp();
+  const status = ['draft', 'planned', 'in_progress', 'completed'].includes(tripData?.status)
+    ? tripData.status
+    : 'planned';
 
-  // Clean and prepare payload according to firebase-blueprint.json
-  const payload = {
-    id: tripId,
-    ownerId: auth.currentUser.uid,
-    destinationId: tripData.destinationId,
-    title: (tripData.title || `Viaggio a ${tripData.destinationId}`).substring(0, 120),
-    score: Number(tripData.score) || 0,
-    profile: tripData.profile || {},
-    itinerary: (tripData.itinerary || []).slice(0, 30),
-    isPublic: Boolean(tripData.isPublic),
-    createdAt: tripData.createdAt ? now : now,
-    updatedAt: now
+  const common = {
+    id: ref.id,
+    ownerId: user.uid,
+    destinationId: cleanText(tripData?.destinationId, 64),
+    title: cleanText(tripData?.title || `Viaggio a ${tripData?.destinationId || 'destinazione'}`, 120),
+    score: Math.max(0, Math.min(100, Number(tripData?.score) || 0)),
+    profile: tripData?.profile || {},
+    itinerary: Array.isArray(tripData?.itinerary) ? tripData.itinerary.slice(0, 30) : [],
+    isPublic: Boolean(tripData?.isPublic),
+    status,
+    updatedAt: serverTimestamp()
   };
 
-  try {
-    await setDoc(tripRef, payload);
-    return { ...tripData, id: tripId };
-  } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, `trips/${tripId}`);
+  if (snap?.exists()) {
+    await setDoc(ref, common, { merge: true });
+  } else {
+    await setDoc(ref, { ...common, createdAt: serverTimestamp() });
   }
+
+  return {
+    ...tripData,
+    ...common,
+    id: ref.id,
+    ownerId: user.uid,
+    updatedAt: new Date().toISOString(),
+    createdAt: tripData?.createdAt || new Date().toISOString()
+  };
 }
 
 export async function loadUserTripsFromCloud() {
-  if (!db || !auth?.currentUser) return [];
-  const q = query(
-    collection(db, 'trips'),
-    where('ownerId', '==', auth.currentUser.uid)
-  );
-
-  try {
-    const snap = await getDocs(q);
-    const trips = [];
-    snap.forEach(d => trips.push(d.data()));
-    return trips;
-  } catch (err) {
-    handleFirestoreError(err, OperationType.LIST, 'trips');
-  }
+  const user = await ensureSignedIn();
+  const q = query(collection(db, 'trips'), where('ownerId', '==', user.uid));
+  const snap = await getDocs(q);
+  const trips = [];
+  snap.forEach(item => trips.push(normalizeTrip(item.data())));
+  return trips.sort((a, b) => (b.updatedAtMs || b.createdAtMs) - (a.updatedAtMs || a.createdAtMs));
 }
 
-// Expose on window for easy access across scripts
+export async function renameTrip(tripId, title) {
+  const user = await ensureSignedIn();
+  const ref = doc(db, 'trips', cleanText(tripId, 128));
+  const snap = await getDoc(ref);
+  if (!snap.exists() || snap.data().ownerId !== user.uid) throw new Error('Viaggio non trovato.');
+  const safeTitle = cleanText(title, 120);
+  if (!safeTitle) throw new Error('Inserisci un nome valido.');
+  await setDoc(ref, { title: safeTitle, updatedAt: serverTimestamp() }, { merge: true });
+  return safeTitle;
+}
+
+export async function updateTripStatus(tripId, status) {
+  const user = await ensureSignedIn();
+  if (!['draft', 'planned', 'in_progress', 'completed'].includes(status)) throw new Error('Stato non valido.');
+  const ref = doc(db, 'trips', cleanText(tripId, 128));
+  const snap = await getDoc(ref);
+  if (!snap.exists() || snap.data().ownerId !== user.uid) throw new Error('Viaggio non trovato.');
+  await setDoc(ref, { status, updatedAt: serverTimestamp() }, { merge: true });
+  return status;
+}
+
+export async function deleteTripFromCloud(tripId) {
+  const user = await ensureSignedIn();
+  const ref = doc(db, 'trips', cleanText(tripId, 128));
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  if (snap.data().ownerId !== user.uid) throw new Error('Non puoi eliminare questo viaggio.');
+  await deleteDoc(ref);
+}
+
+export async function duplicateTripToCloud(tripData) {
+  const copy = {
+    ...tripData,
+    id: undefined,
+    ownerId: undefined,
+    title: cleanText((tripData?.title || 'Viaggio') + ' — copia', 120),
+    createdAt: undefined,
+    updatedAt: undefined,
+    status: 'draft',
+    isPublic: false
+  };
+  return saveTripToCloud(copy);
+}
+
 window.LFBRFirebase = {
+  get app() { return app; },
   get auth() { return auth; },
   get db() { return db; },
-  get currentUser() { return currentUser; },
+  get currentUser() { return currentUser || auth?.currentUser || null; },
+  ready: () => ensureReady(),
   loginWithGoogle,
   logoutUser,
+  saveTravelProfile,
+  loadTravelProfile,
   saveTripToCloud,
-  loadUserTripsFromCloud
+  loadUserTripsFromCloud,
+  renameTrip,
+  updateTripStatus,
+  deleteTripFromCloud,
+  duplicateTripToCloud
 };
 
 initPromise = initFirebase();
