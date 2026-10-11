@@ -33,6 +33,7 @@ let auth = null;
 let db = null;
 let currentUser = null;
 let initialized = false;
+let initPromise = null;
 
 export function handleFirestoreError(error, operationType, path) {
   const errInfo = {
@@ -62,7 +63,7 @@ async function initFirebase() {
     const config = await res.json();
 
     app = initializeApp(config);
-    db = getFirestore(app, config.firestoreDatabaseId);
+    db = config.firestoreDatabaseId ? getFirestore(app, config.firestoreDatabaseId) : getFirestore(app);
     auth = getAuth(app);
     initialized = true;
 
@@ -112,14 +113,31 @@ async function syncUserProfile(user) {
       }, { merge: true });
     }
   } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
+    console.warn('Sync profilo utente in attesa (database o regole Firestore):', err?.message || err);
   }
 }
 
 export async function loginWithGoogle() {
-  if (!auth) throw new Error('Firebase Auth non inizializzato');
+  if (initPromise) await initPromise;
+  if (!auth) throw new Error('Firebase Auth non è ancora inizializzato');
   const provider = new GoogleAuthProvider();
-  return signInWithPopup(auth, provider);
+  try {
+    return await signInWithPopup(auth, provider);
+  } catch (err) {
+    if (err.code === 'auth/unauthorized-domain') {
+      throw new Error(`Dominio non autorizzato: aggiungi "${window.location.hostname}" nei Domini autorizzati su Firebase Console (Authentication > Settings > Authorized domains).`);
+    }
+    if (err.code === 'auth/operation-not-allowed') {
+      throw new Error('Google Sign-in non abilitato: attivalo su Firebase Console (Authentication > Sign-in method > Google).');
+    }
+    if (err.code === 'auth/popup-blocked') {
+      throw new Error('Il browser ha bloccato il popup: consenti i popup per questo sito e riprova.');
+    }
+    if (err.code === 'auth/popup-closed-by-user') {
+      throw new Error('Accesso annullato (popup chiuso).');
+    }
+    throw err;
+  }
 }
 
 export async function logoutUser() {
@@ -186,4 +204,4 @@ window.LFBRFirebase = {
   loadUserTripsFromCloud
 };
 
-initFirebase();
+initPromise = initFirebase();

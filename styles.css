@@ -26,6 +26,30 @@ button,input,select{font:inherit}.app-shell{max-width:1280px;margin:0 auto;paddi
 .cloud-trip-item h4{margin:0 0 4px;font-size:14px}
 .cloud-trip-item p{margin:0;font-size:11px;color:var(--muted)}
 .cloud-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;background:#eef3ff;color:#3867ff;border-radius:999px;font-size:9px;font-weight:850}
+.calendar-summary-card{padding:20px;border-radius:18px;background:#f7f9fc;border:1px solid #e8ecf2;margin-top:4px}
+.calendar-summary-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+.calendar-summary-header small{display:block;color:#8790a1;font-size:9px;text-transform:uppercase;letter-spacing:.1em;font-weight:900}
+.calendar-summary-header strong{display:block;font-size:15px;letter-spacing:-.02em;margin-top:2px;color:var(--ink)}
+.calendar-nav-controls{display:flex;align-items:center;gap:6px}
+.cal-nav-btn{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;display:grid;place-items:center;font-size:13px;font-weight:900;color:var(--ink);transition:all .15s}
+.cal-nav-btn:hover{background:var(--panel-2);border-color:#bfc8d6}
+.cal-month-title{font-size:12px;font-weight:850;min-width:115px;text-align:center;color:var(--ink)}
+.calendar-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:6px}
+.calendar-weekday{font-size:10px;font-weight:900;text-transform:uppercase;color:#8891a2;padding:4px 0}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.calendar-cell{min-height:36px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink);background:transparent;border:0;padding:4px;position:relative}
+.calendar-cell.other-month{color:#bcc3d0;opacity:.5}
+.calendar-cell.today{font-weight:900;text-decoration:underline;text-underline-offset:3px}
+.calendar-cell.in-range{background:rgba(56,103,255,.12);color:var(--brand);border-radius:3px}
+.calendar-cell.range-start{background:var(--brand);color:#fff!important;border-radius:8px 3px 3px 8px;font-weight:900}
+.calendar-cell.range-end{background:var(--brand);color:#fff!important;border-radius:3px 8px 8px 3px;font-weight:900}
+.calendar-cell.range-start.range-end{border-radius:8px}
+.calendar-legend{display:flex;align-items:center;gap:16px;margin-top:14px;padding-top:10px;border-top:1px solid #e8ecf2;font-size:10px;font-weight:750;color:#788195}
+.legend-item{display:inline-flex;align-items:center;gap:6px}
+.legend-dot{width:9px;height:9px;border-radius:50%}
+.legend-dot.start{background:var(--brand)}
+.legend-dot.range{background:rgba(56,103,255,.3);border-radius:3px}
+.legend-dot.end{background:var(--brand)}
 @media(max-width:1000px){.hero{grid-template-columns:1fr}.hero-visual{min-height:330px}.planner{grid-template-columns:1fr}.stepper{position:static;flex-direction:row;overflow:auto}.step-dot{min-width:150px}.recommendations{grid-template-columns:repeat(2,1fr)}.trip-layout{grid-template-columns:1fr}.feature-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:720px){.app-shell{padding:0 15px}.app-header{min-height:66px}.main-nav a{display:none}.hero{padding:44px 0 56px}.hero h1{font-size:clamp(46px,14vw,70px)}.hero-copy>p{font-size:16px}.hero-visual{min-height:290px}.travel-card{width:132px;padding:13px}.travel-card strong{font-size:32px}.section-heading{align-items:flex-start;flex-direction:column}.planner-main{padding:20px;min-height:auto}.stepper{padding:10px;border-radius:18px}.step-dot{min-width:132px;grid-template-columns:32px 1fr}.step-dot span{width:32px;height:32px}.form-grid,.form-grid.three{grid-template-columns:1fr}.choice-row{grid-template-columns:1fr}.interest-grid{grid-template-columns:repeat(2,1fr)}.summary-card{grid-template-columns:1fr}.summary-item.full{grid-column:auto}.recommendations{grid-template-columns:1fr}.trip-hero{align-items:flex-start}.trip-hero h2{font-size:42px}.trip-score strong{font-size:44px}.stop-card{grid-template-columns:52px 1fr}.stop-actions{grid-column:2}.feature-grid{grid-template-columns:1fr}.roadmap{grid-template-columns:1fr;align-items:start}.app-footer{flex-direction:column}.map-panel{min-height:440px}.map-panel #tripMap{height:385px}}
 @media(max-width:430px){.interest-grid{grid-template-columns:1fr}.hero-actions .primary-btn,.hero-actions .secondary-btn{width:100%}.trust-row{display:grid;gap:7px}.trip-hero{display:grid;grid-template-columns:1fr}.trip-score{text-align:left}.trip-score strong{display:inline-block;margin-right:8px}.quick-actions{display:grid;grid-template-columns:1fr 1fr}.quick-actions button{width:100%}}

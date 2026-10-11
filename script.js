@@ -103,11 +103,14 @@
 
     els.loginBtn.addEventListener("click",async()=>{
       try {
-        if(!window.LFBRFirebase) return;
+        if(!window.LFBRFirebase) {
+          toast("Inizializzazione Firebase in corso, riprova tra un istante...");
+          return;
+        }
         await window.LFBRFirebase.loginWithGoogle();
         toast("Accesso effettuato con Google");
       } catch(err) {
-        toast("Errore durante l'accesso: " + (err.message||"Riprova"));
+        toast(err.message || "Errore durante l'accesso");
       }
     });
 
@@ -214,12 +217,23 @@
     if(state.step===4){syncFromForm();renderSummary();}
   }
 
+  const calState = { year: 2026, month: 9 };
+
   function renderSummary(){
     const dest=DATA.destinations.find(d=>d.id===state.destinationId);
     const top=DATA.interests
       .map(i=>({label:i.label,value:state.interests[i.id]||0}))
       .filter(x=>x.value>0).sort((a,b)=>b.value-a.value).slice(0,5);
     const days=tripDays();
+
+    if (state.startDate) {
+      const parts = state.startDate.split('-').map(Number);
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        calState.year = parts[0];
+        calState.month = parts[1] - 1;
+      }
+    }
+
     els.summary.innerHTML=
       '<div class="summary-item"><small>Destinazione</small><strong>'+(state.mode==="discover"?"Da consigliare":dest.emoji+" "+dest.name)+'</strong></div>'+
       '<div class="summary-item"><small>Durata</small><strong>'+days+' '+(days===1?"giorno":"giorni")+'</strong></div>'+
@@ -227,7 +241,137 @@
       '<div class="summary-item"><small>Budget</small><strong>circa '+state.budget+' € / giorno / persona</strong></div>'+
       '<div class="summary-item"><small>Ritmo</small><strong>'+paceLabel(state.pace)+'</strong></div>'+
       '<div class="summary-item"><small>Mobilità</small><strong>'+transportLabel(state.transport)+'</strong></div>'+
-      '<div class="summary-item full"><small>Priorità</small><div class="summary-tags">'+(top.length?top.map(x=>'<span>'+x.label+'</span>').join(""):'<span>Profilo equilibrato</span>')+'</div></div>';
+      '<div class="summary-item full"><small>Priorità</small><div class="summary-tags">'+(top.length?top.map(x=>'<span>'+x.label+'</span>').join(""):'<span>Profilo equilibrato</span>')+'</div></div>'+
+      '<div class="summary-item full calendar-summary-card">' +
+        '<div class="calendar-summary-header">' +
+          '<div>' +
+            '<small>Calendario del viaggio</small>' +
+            '<strong>' + formatTripRange(state.startDate, state.endDate, days) + '</strong>' +
+          '</div>' +
+          '<div class="calendar-nav-controls">' +
+            '<button type="button" class="cal-nav-btn" id="calPrevBtn" aria-label="Mese precedente">‹</button>' +
+            '<span class="cal-month-title" id="calMonthTitle"></span>' +
+            '<button type="button" class="cal-nav-btn" id="calNextBtn" aria-label="Mese successivo">›</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="calendar-weekdays">' +
+          ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(d => '<div class="calendar-weekday">'+d+'</div>').join('') +
+        '</div>' +
+        '<div class="calendar-grid" id="calDaysGrid"></div>' +
+        '<div class="calendar-legend">' +
+          '<span class="legend-item"><span class="legend-dot start"></span> Partenza (' + (state.startDate ? formatDateItalian(state.startDate) : '-') + ')</span>' +
+          '<span class="legend-item"><span class="legend-dot range"></span> In viaggio</span>' +
+          '<span class="legend-item"><span class="legend-dot end"></span> Ritorno (' + (state.endDate ? formatDateItalian(state.endDate) : '-') + ')</span>' +
+        '</div>' +
+      '</div>';
+
+    bindCalendarControls();
+    renderTripCalendar();
+  }
+
+  function bindCalendarControls(){
+    const prevBtn = $("#calPrevBtn", els.summary);
+    const nextBtn = $("#calNextBtn", els.summary);
+    if(prevBtn){
+      prevBtn.addEventListener("click", () => {
+        calState.month--;
+        if(calState.month < 0){
+          calState.month = 11;
+          calState.year--;
+        }
+        renderTripCalendar();
+      });
+    }
+    if(nextBtn){
+      nextBtn.addEventListener("click", () => {
+        calState.month++;
+        if(calState.month > 11){
+          calState.month = 0;
+          calState.year++;
+        }
+        renderTripCalendar();
+      });
+    }
+  }
+
+  function renderTripCalendar(){
+    const monthTitle = $("#calMonthTitle", els.summary);
+    const grid = $("#calDaysGrid", els.summary);
+    if(!monthTitle || !grid) return;
+
+    const months = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+    monthTitle.textContent = months[calState.month] + ' ' + calState.year;
+
+    const firstDay = new Date(calState.year, calState.month, 1);
+    const startingDay = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = new Date(calState.year, calState.month + 1, 0).getDate();
+    const prevMonthDays = new Date(calState.year, calState.month, 0).getDate();
+
+    const todayStr = formatDateInput(new Date());
+    const startStr = state.startDate;
+    const endStr = state.endDate;
+
+    let html = '';
+
+    // Days from previous month
+    for(let i = startingDay - 1; i >= 0; i--){
+      const dayNum = prevMonthDays - i;
+      html += '<div class="calendar-cell other-month">' + dayNum + '</div>';
+    }
+
+    // Days of the current month
+    for(let day = 1; day <= daysInMonth; day++){
+      const monthPart = String(calState.month + 1).padStart(2, '0');
+      const dayPart = String(day).padStart(2, '0');
+      const dateStr = calState.year + '-' + monthPart + '-' + dayPart;
+
+      let classes = ['calendar-cell'];
+      const isStart = dateStr === startStr;
+      const isEnd = dateStr === endStr;
+      const isInRange = dateStr >= startStr && dateStr <= endStr;
+
+      if(isStart) classes.push('range-start');
+      if(isEnd) classes.push('range-end');
+      if(isInRange && !isStart && !isEnd) classes.push('in-range');
+      if(dateStr === todayStr) classes.push('today');
+
+      html += '<div class="' + classes.join(' ') + '">' + day + '</div>';
+    }
+
+    // Days from next month to complete the row
+    const totalRendered = startingDay + daysInMonth;
+    const remaining = (7 - (totalRendered % 7)) % 7;
+    for(let i = 1; i <= remaining; i++){
+      html += '<div class="calendar-cell other-month">' + i + '</div>';
+    }
+
+    grid.innerHTML = html;
+  }
+
+  function formatTripRange(startStr, endStr, days){
+    if(!startStr || !endStr) return 'Date non definite';
+    const months = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+    const [sy, sm, sd] = startStr.split('-').map(Number);
+    const [ey, em, ed] = endStr.split('-').map(Number);
+
+    let text = '';
+    if(sy === ey){
+      if(sm === em){
+        text = 'Dal ' + sd + ' al ' + ed + ' ' + months[sm - 1] + ' ' + sy;
+      } else {
+        text = 'Dal ' + sd + ' ' + months[sm - 1] + ' al ' + ed + ' ' + months[em - 1] + ' ' + sy;
+      }
+    } else {
+      text = 'Dal ' + sd + ' ' + months[sm - 1] + ' ' + sy + ' al ' + ed + ' ' + months[em - 1] + ' ' + ey;
+    }
+    return text + ' · ' + days + ' ' + (days === 1 ? 'giorno' : 'giorni');
+  }
+
+  function formatDateItalian(dateStr){
+    if(!dateStr) return '';
+    const months = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return d + ' ' + months[m - 1] + ' ' + y;
   }
 
   function validateDates(){

@@ -1,12 +1,9 @@
 {
-  "projectId": "ciclosegreteria",
-  "appId": "1:1022300071405:web:d02e0a12b1461fed87f3e4",
-  "apiKey": "AIzaSyC-Y3FJtvAvJecjBJ1nXRuYB7zX6JG5BCE",
-  "authDomain": "ciclosegreteria.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-lfbrit-a3068a6b-3df0-41e9-8fd5-167bbaa440da",
-  "storageBucket": "ciclosegreteria.firebasestorage.app",
-  "messagingSenderId": "1022300071405",
-  "measurementId": "",
-  "oAuthClientId": "1022300071405-l3ji2bq8l5f077d77tvne9d7o9knudla.apps.googleusercontent.com",
-  "recaptchaSiteKey": ""
+  "projectId": "lfbr-travel",
+  "appId": "1:552294414093:web:994b2d75f94c59a1e7e244",
+  "apiKey": "AIzaSyADb3gX2ehC3CCu9UUYSVjcB2J2FCquaCw",
+  "authDomain": "lfbr-travel.firebaseapp.com",
+  "storageBucket": "lfbr-travel.firebasestorage.app",
+  "messagingSenderId": "552294414093",
+  "measurementId": "G-E8W87GSYTB"
 }
