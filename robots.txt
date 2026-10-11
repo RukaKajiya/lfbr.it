@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /articoli/
+Disallow: /categorie/
+Disallow: /ultimi.html
 
 Sitemap: https://lfbr.it/sitemap.xml
