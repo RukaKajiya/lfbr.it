@@ -145,11 +145,25 @@ export async function logoutUser() {
 export async function saveTravelProfile(profile) {
   const user = await ensureSignedIn();
   const ref = doc(db, 'users', user.uid);
-  await setDoc(ref, {
-    travelProfile: profile || {},
-    profileUpdatedAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  }, { merge: true });
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      id: user.uid,
+      email: user.email || '',
+      displayName: user.displayName || 'Viaggiatore',
+      travelProfile: profile || {},
+      profileUpdatedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  } else {
+    await setDoc(ref, {
+      travelProfile: profile || {},
+      profileUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  }
   return profile;
 }
 
