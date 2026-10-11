@@ -1,1 +1,12 @@
-{"name":"LFBR Magazine","short_name":"LFBR","lang":"it","start_url":"/","scope":"/","display":"browser","background_color":"#f2f3f5","theme_color":"#f2f3f5","icons":[{"src":"/favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}
+{
+  "name":"LFBR Travel",
+  "short_name":"LFBR Travel",
+  "lang":"it",
+  "start_url":"/",
+  "scope":"/",
+  "display":"standalone",
+  "background_color":"#f4f7fb",
+  "theme_color":"#0c1220",
+  "description":"Planner di viaggio personalizzato in base a gusti, budget e ritmo.",
+  "icons":[{"src":"/favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+}
