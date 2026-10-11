@@ -232,7 +232,11 @@ export async function renameTrip(tripId, title) {
   if (!snap.exists() || snap.data().ownerId !== user.uid) throw new Error('Viaggio non trovato.');
   const safeTitle = cleanText(title, 120);
   if (!safeTitle) throw new Error('Inserisci un nome valido.');
-  await setDoc(ref, { title: safeTitle, updatedAt: serverTimestamp() }, { merge: true });
+  await setDoc(ref, {
+    title: safeTitle,
+    status: snap.data().status || 'planned',
+    updatedAt: serverTimestamp()
+  }, { merge: true });
   return safeTitle;
 }
 
