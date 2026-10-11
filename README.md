@@ -22,7 +22,7 @@ Web app per organizzare viaggi in base a gusti, budget, durata e ritmo. Il proge
 - ricerca voli e hotel tramite backend;
 - modalità demo esplicita quando il provider non è configurato;
 - preventivo viaggio con volo, hotel e attività;
-- monitoraggio prezzi Firestore con controllo programmato ogni 6 ore.
+- monitoraggio prezzi Firestore con controllo programmato una volta al giorno;
 
 ## Dati e persistenza
 
@@ -113,22 +113,29 @@ Gli snapshot storici sono salvati in `priceWatches/{watchId}/snapshots`.
 
 ## Provider voli e hotel
 
-Il backend è già predisposto per Amadeus Self-Service. Senza credenziali, la ricerca funziona in modalità demo chiaramente etichettata e il pulsante di monitoraggio non viene abilitato.
+Il backend usa **SerpApi** per Google Flights e Google Hotels. Senza chiave la ricerca resta disponibile in modalità demo chiaramente etichettata.
 
 Configurare esclusivamente lato server:
 
 ```env
-AMADEUS_CLIENT_ID=...
-AMADEUS_CLIENT_SECRET=...
-AMADEUS_HOST=https://test.api.amadeus.com
+SERPAPI_KEY=...
+SERPAPI_HL=it
+SERPAPI_GL=it
+SERPAPI_CURRENCY=EUR
 ```
 
-Non inserire mai queste credenziali in `firebase-applet-config.json`, `index.html`, `script.js` o altri file client-side.
+Non inserire mai `SERPAPI_KEY` in `firebase-applet-config.json`, `index.html`, `script.js` o altri file client-side.
 
-Per AI Studio / Cloud Run impostare le variabili nell'ambiente del servizio. Per Firebase Functions configurarle nell'ambiente di deploy (o in un file locale `functions/.env` non versionato). L'ambiente Amadeus `test` resta esplicitamente non monitorabile; per abilitare il price tracker servono credenziali/host di produzione e `AMADEUS_MODE=production`.
+Per AI Studio / Cloud Run salva `SERPAPI_KEY` come secret/variabile server-side. Per Firebase Functions è preferibile Secret Manager:
+
+```bash
+firebase functions:secrets:set SERPAPI_KEY
+```
+
+Il piano gratuito SerpApi ha un plafond mensile limitato, quindi LFBR Travel limita il price tracker a **5 monitoraggi attivi** e li ricontrolla **una volta al giorno**. Le ricerche manuali consumano comunque il plafond del piano.
 
 ## Monitoraggio prezzi
 
-`checkTravelPrices` è una Firebase scheduled function configurata ogni 6 ore. Controlla al massimo 100 watch attivi per esecuzione, aggiorna ultimo prezzo e minimo storico e registra uno snapshot. Se il provider non è in modalità production la funzione termina senza generare prezzi fittizi o alert basati sui dati di test.
+`checkTravelPrices` è una Firebase scheduled function configurata ogni giorno alle 08:00 Europe/Rome. Con la configurazione gratuita controlla al massimo 5 watch attivi per esecuzione, aggiorna ultimo prezzo e minimo storico e registra uno snapshot. Se `SERPAPI_KEY` non è configurata la funzione termina senza generare prezzi fittizi.
 
 La scheduled function richiede un progetto Firebase che supporti Cloud Functions/Cloud Scheduler e deve essere effettivamente distribuita; la sola sincronizzazione GitHub non garantisce il deploy della funzione.
