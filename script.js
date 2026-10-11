@@ -26,7 +26,11 @@
     markers: [],
     route: null,
     profileDirty: false,
-    firebaseReady: false
+    firebaseReady: false,
+    activeTripTab: 'overview',
+    travelProvider: null,
+    lastFlightSearch: null,
+    lastHotelSearch: null
   };
 
   const els = {
@@ -67,7 +71,22 @@
     saveCloudBtn: $('#saveCloudBtn'),
     cloudModal: $('#cloudModal'),
     closeCloudModalBtn: $('#closeCloudModalBtn'),
-    cloudTripsList: $('#cloudTripsList')
+    cloudTripsList: $('#cloudTripsList'),
+    flightForm: $('#flightSearchForm'),
+    flightResults: $('#flightResults'),
+    flightState: $('#flightSearchState'),
+    hotelForm: $('#hotelSearchForm'),
+    hotelResults: $('#hotelResults'),
+    hotelState: $('#hotelSearchState'),
+    watchesList: $('#priceWatchesList'),
+    refreshWatchesBtn: $('#refreshWatchesBtn'),
+    providerBadge: $('#travelProviderBadge'),
+    overviewFlight: $('#overviewFlight'),
+    overviewFlightMeta: $('#overviewFlightMeta'),
+    overviewHotel: $('#overviewHotel'),
+    overviewHotelMeta: $('#overviewHotelMeta'),
+    overviewActivities: $('#overviewActivities'),
+    overviewTotal: $('#overviewTotal')
   };
 
   const calendarState = { year: 2026, month: 9 };
@@ -305,6 +324,16 @@
 
     els.timeline.addEventListener('click', handleStopAction);
 
+    $('.trip-tab').forEach(button => {
+      button.addEventListener('click', () => activateTripTab(button.dataset.tripTab));
+    });
+    els.flightForm?.addEventListener('submit', searchFlights);
+    els.hotelForm?.addEventListener('submit', searchHotels);
+    els.flightResults?.addEventListener('click', handleBookingResultAction);
+    els.hotelResults?.addEventListener('click', handleBookingResultAction);
+    els.refreshWatchesBtn?.addEventListener('click', refreshPriceWatches);
+    els.watchesList?.addEventListener('click', handleWatchAction);
+
     els.loginBtn.addEventListener('click', login);
     els.logoutBtn.addEventListener('click', logout);
     els.cloudTripsBtn.addEventListener('click', openCloudModal);
@@ -332,6 +361,7 @@
       updateAuthUI(user);
 
       const cloudProfile = event.detail?.profile?.travelProfile || null;
+      if (user && state.activeTripTab === 'prices') refreshPriceWatches();
       if (user && cloudProfile && !state.profileDirty && !state.currentTrip) {
         restoreProfile(cloudProfile);
         syncWizard();
@@ -638,7 +668,8 @@
       profile,
       destinationId,
       score: destinationScore(destination),
-      itinerary
+      itinerary,
+      travelQuotes: {}
     };
 
     state.activeDay = 0;
@@ -737,7 +768,8 @@
       ...trip,
       status: trip.status || deriveTripStatus(trip.profile || {}),
       title: trip.title || ('Viaggio a ' + destination.name),
-      itinerary: Array.isArray(trip.itinerary) ? trip.itinerary : []
+      itinerary: Array.isArray(trip.itinerary) ? trip.itinerary : [],
+      travelQuotes: trip.travelQuotes && typeof trip.travelQuotes === 'object' ? trip.travelQuotes : {}
     };
     state.activeDay = 0;
 
@@ -787,6 +819,10 @@
         '<span>G' + day.day + '</span><small>' + shortDate(date) + '</small></button>';
     }).join('');
 
+    prepareBookingForms();
+    renderOverview();
+    activateTripTab(state.activeTripTab || 'overview', { scroll: false });
+    checkTravelProviderStatus();
     renderDay();
   }
 
@@ -1074,6 +1110,393 @@
       els.cloudTripsList.innerHTML =
         '<div class="cloud-error"><strong>Non riesco a caricare i viaggi</strong><p>' + escapeHtml(error.message || 'Riprova tra poco') + '</p></div>';
     }
+  }
+
+  function activateTripTab(name, { scroll = false } = {}) {
+    const valid = ['overview', 'flights', 'hotels', 'itinerary', 'prices'];
+    const next = valid.includes(name) ? name : 'overview';
+    state.activeTripTab = next;
+
+    $('.trip-tab').forEach(button => {
+      const active = button.dataset.tripTab === next;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+
+    $('[data-trip-panel]').forEach(panel => {
+      const active = panel.dataset.tripPanel === next;
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+
+    if (next === 'itinerary' && state.map) {
+      setTimeout(() => state.map.invalidateSize(), 80);
+    }
+    if (next === 'prices') refreshPriceWatches();
+    if (scroll) els.trip.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function prepareBookingForms() {
+    if (!state.currentTrip) return;
+    const destination = DATA.destinations.find(item => item.id === state.currentTrip.destinationId);
+    const profile = state.currentTrip.profile || {};
+    if (!destination) return;
+
+    const originCode = /^[A-Za-z]{3}$/.test(profile.origin || '') ? profile.origin.toUpperCase() : '';
+    const setValue = (selector, value) => {
+      const el = $(selector);
+      if (el && (document.activeElement !== el || !el.value)) el.value = value ?? '';
+    };
+
+    setValue('#flightOrigin', originCode);
+    setValue('#flightDestination', destination.flightCode || '');
+    setValue('#flightDeparture', profile.startDate || '');
+    setValue('#flightReturn', profile.endDate || '');
+    setValue('#flightAdults', profile.adults || 1);
+    setValue('#flightChildren', profile.children || 0);
+    setValue('#hotelCheckIn', profile.startDate || '');
+    setValue('#hotelCheckOut', profile.endDate || '');
+    setValue('#hotelAdults', Math.max(1, Number(profile.adults || 1) + Number(profile.children || 0)));
+
+    const today = formatDateInput(new Date());
+    ['#flightDeparture','#flightReturn','#hotelCheckIn','#hotelCheckOut'].forEach(selector => {
+      const el = $(selector);
+      if (el) el.min = today;
+    });
+  }
+
+  async function checkTravelProviderStatus() {
+    if (!els.providerBadge) return;
+    try {
+      const response = await fetch('/api/travel/status', { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error('backend_unavailable');
+      const data = await response.json();
+      state.travelProvider = data;
+      els.providerBadge.textContent = data.configured ? 'Prezzi live · Amadeus' : 'Modalità demo · provider da configurare';
+      els.providerBadge.dataset.mode = data.configured ? 'live' : 'demo';
+    } catch (error) {
+      state.travelProvider = { configured: false, mode: 'offline' };
+      els.providerBadge.textContent = 'Backend prezzi non disponibile';
+      els.providerBadge.dataset.mode = 'offline';
+    }
+  }
+
+  async function apiPost(path, payload) {
+    const response = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    let data = null;
+    try { data = await response.json(); } catch (error) { data = null; }
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || 'Servizio prezzi non disponibile.');
+    }
+    return data;
+  }
+
+  async function searchFlights(event) {
+    event.preventDefault();
+    if (!state.currentTrip) return;
+    const button = $('button[type="submit"]', els.flightForm);
+    const query = {
+      origin: ($('#flightOrigin')?.value || '').trim().toUpperCase(),
+      destination: ($('#flightDestination')?.value || '').trim().toUpperCase(),
+      departureDate: $('#flightDeparture')?.value || '',
+      returnDate: $('#flightReturn')?.value || '',
+      adults: Number($('#flightAdults')?.value || 1),
+      children: Number($('#flightChildren')?.value || 0),
+      travelClass: $('#flightClass')?.value || 'ECONOMY',
+      nonStop: Boolean($('#flightDirect')?.checked)
+    };
+
+    if (!/^[A-Z]{3}$/.test(query.origin) || !/^[A-Z]{3}$/.test(query.destination)) {
+      toast('Per i voli usa codici IATA di 3 lettere, per esempio BLQ o FCO');
+      return;
+    }
+
+    setBookingLoading(button, els.flightState, 'Cerco le migliori opzioni…');
+    els.flightResults.innerHTML = '';
+    try {
+      const data = await apiPost('/api/travel/flights', query);
+      state.lastFlightSearch = data;
+      renderFlightResults(data);
+      saveBestTravelQuote('flight', data);
+      renderOverview();
+    } catch (error) {
+      els.flightState.innerHTML = '<div class="booking-error">' + escapeHtml(error.message) + '</div>';
+    } finally {
+      setBookingLoading(button, null, null, false);
+    }
+  }
+
+  async function searchHotels(event) {
+    event.preventDefault();
+    if (!state.currentTrip) return;
+    const destination = DATA.destinations.find(item => item.id === state.currentTrip.destinationId);
+    if (!destination) return;
+
+    const button = $('button[type="submit"]', els.hotelForm);
+    const query = {
+      latitude: destination.center[0],
+      longitude: destination.center[1],
+      checkInDate: $('#hotelCheckIn')?.value || '',
+      checkOutDate: $('#hotelCheckOut')?.value || '',
+      adults: Number($('#hotelAdults')?.value || 1),
+      roomQuantity: Number($('#hotelRooms')?.value || 1),
+      radius: Number($('#hotelRadius')?.value || 15)
+    };
+
+    setBookingLoading(button, els.hotelState, 'Cerco strutture disponibili…');
+    els.hotelResults.innerHTML = '';
+    try {
+      const data = await apiPost('/api/travel/hotels', query);
+      state.lastHotelSearch = data;
+      renderHotelResults(data);
+      saveBestTravelQuote('hotel', data);
+      renderOverview();
+    } catch (error) {
+      els.hotelState.innerHTML = '<div class="booking-error">' + escapeHtml(error.message) + '</div>';
+    } finally {
+      setBookingLoading(button, null, null, false);
+    }
+  }
+
+  function setBookingLoading(button, stateEl, message, loading = true) {
+    if (button) {
+      button.disabled = loading;
+      button.dataset.originalText ||= button.textContent;
+      button.textContent = loading ? 'Ricerca…' : button.dataset.originalText;
+    }
+    if (stateEl && loading) stateEl.innerHTML = '<div class="booking-loading">' + escapeHtml(message || 'Caricamento…') + '</div>';
+  }
+
+  function renderFlightResults(data) {
+    const results = Array.isArray(data.results) ? data.results : [];
+    els.flightState.innerHTML = providerStateMessage(data, results.length, 'volo');
+    if (!results.length) {
+      els.flightResults.innerHTML = '<div class="booking-empty">Nessun volo trovato con questi parametri.</div>';
+      return;
+    }
+
+    els.flightResults.innerHTML = results.slice(0, 10).map((item, index) => {
+      const outbound = item.outbound || {};
+      const inbound = item.inbound || {};
+      const direct = Number(outbound.stops || 0) === 0;
+      return '<article class="booking-result ' + (index === 0 ? 'best' : '') + '">' +
+        '<div class="booking-result-main"><div class="booking-route"><span>' + escapeHtml(item.airline || item.airlineCode || 'Volo') + '</span>' +
+          '<strong>' + escapeHtml(outbound.from || '') + ' → ' + escapeHtml(outbound.to || '') + '</strong>' +
+          '<small>' + formatDateTime(outbound.departure) + ' · ' + escapeHtml(outbound.duration || '') + ' · ' + (direct ? 'Diretto' : (outbound.stops + ' scalo/i')) + '</small>' +
+          (inbound.from ? '<small>Ritorno: ' + escapeHtml(inbound.from) + ' → ' + escapeHtml(inbound.to) + ' · ' + formatDateTime(inbound.departure) + '</small>' : '') +
+        '</div></div>' +
+        '<div class="booking-price"><small>Totale</small><strong>' + money(item.price, item.currency) + '</strong>' +
+          (data.live ? '<button type="button" data-watch-type="flight" data-result-index="' + index + '">🔔 Monitora</button>' : '<span class="demo-chip">DEMO</span>') +
+        '</div></article>';
+    }).join('');
+  }
+
+  function renderHotelResults(data) {
+    const results = Array.isArray(data.results) ? data.results : [];
+    els.hotelState.innerHTML = providerStateMessage(data, results.length, 'hotel');
+    if (!results.length) {
+      els.hotelResults.innerHTML = '<div class="booking-empty">Nessun hotel trovato con questi parametri.</div>';
+      return;
+    }
+
+    els.hotelResults.innerHTML = results.slice(0, 12).map((item, index) => {
+      return '<article class="booking-result hotel-result ' + (index === 0 ? 'best' : '') + '">' +
+        '<div class="booking-result-main"><div class="booking-route"><span>🏨 Hotel</span><strong>' + escapeHtml(item.name || 'Hotel') + '</strong>' +
+          '<small>' + (item.distance != null ? escapeHtml(item.distance + ' ' + (item.distanceUnit || 'KM') + ' dal centro') : 'Destinazione selezionata') +
+          (item.room ? ' · ' + escapeHtml(item.room) : '') + (item.board ? ' · ' + escapeHtml(item.board) : '') + '</small></div></div>' +
+        '<div class="booking-price"><small>Soggiorno</small><strong>' + money(item.price, item.currency) + '</strong>' +
+          (data.live ? '<button type="button" data-watch-type="hotel" data-result-index="' + index + '">🔔 Monitora</button>' : '<span class="demo-chip">DEMO</span>') +
+        '</div></article>';
+    }).join('');
+  }
+
+  function providerStateMessage(data, count, noun) {
+    if (data.live) {
+      return '<div class="booking-live">● ' + count + ' risultati live · fonte ' + escapeHtml(data.source || 'provider') + '</div>';
+    }
+    return '<div class="booking-demo">Modalità demo: questi ' + noun + ' e prezzi sono simulati. Configura il provider per dati reali e monitoraggio.</div>';
+  }
+
+  function saveBestTravelQuote(type, data) {
+    if (!state.currentTrip || !Array.isArray(data.results) || !data.results.length) return;
+    const best = data.results[0];
+    state.currentTrip.travelQuotes ||= {};
+    state.currentTrip.travelQuotes[type] = {
+      price: Number(best.price) || 0,
+      currency: best.currency || 'EUR',
+      live: Boolean(data.live),
+      source: data.source || 'demo',
+      query: data.query || {},
+      label: type === 'flight'
+        ? ((best.airline || best.airlineCode || 'Volo') + ' · ' + (best.outbound?.from || '') + ' → ' + (best.outbound?.to || ''))
+        : (best.name || 'Hotel'),
+      checkedAt: new Date().toISOString()
+    };
+    touchTrip();
+  }
+
+  function renderOverview() {
+    if (!state.currentTrip) return;
+    const quotes = state.currentTrip.travelQuotes || {};
+    const flight = quotes.flight;
+    const hotel = quotes.hotel;
+    const travelers = Math.max(1, Number(state.currentTrip.profile?.adults || 0) + Number(state.currentTrip.profile?.children || 0));
+    const activitiesPerPerson = state.currentTrip.itinerary
+      .flatMap(day => day.stops || [])
+      .reduce((sum, stop) => sum + (Number(stop.cost) || 0), 0);
+    const activities = activitiesPerPerson * travelers;
+    const flightPrice = Number(flight?.price || 0);
+    const hotelPrice = Number(hotel?.price || 0);
+    const total = flightPrice + hotelPrice + activities;
+
+    if (els.overviewActivities) els.overviewActivities.textContent = money(activities, 'EUR');
+    if (els.overviewFlight) els.overviewFlight.textContent = flight ? money(flightPrice, flight.currency) : '—';
+    if (els.overviewHotel) els.overviewHotel.textContent = hotel ? money(hotelPrice, hotel.currency) : '—';
+    if (els.overviewTotal) els.overviewTotal.textContent = total > 0 ? money(total, 'EUR') : '—';
+    if (els.overviewFlightMeta) els.overviewFlightMeta.textContent = flight ? flight.label + (flight.live ? ' · live' : ' · demo') : 'Cerca un volo per stimare il costo.';
+    if (els.overviewHotelMeta) els.overviewHotelMeta.textContent = hotel ? hotel.label + (hotel.live ? ' · live' : ' · demo') : 'Cerca un hotel per stimare il soggiorno.';
+  }
+
+  async function handleBookingResultAction(event) {
+    const button = event.target.closest('[data-watch-type]');
+    if (!button) return;
+    const type = button.dataset.watchType;
+    const index = Number(button.dataset.resultIndex);
+    const search = type === 'flight' ? state.lastFlightSearch : state.lastHotelSearch;
+    const result = search?.results?.[index];
+    if (!search?.live || !result) {
+      toast('Il monitoraggio è disponibile solo sui prezzi live');
+      return;
+    }
+
+    try {
+      if (!window.LFBRFirebase?.currentUser) {
+        await login();
+        if (!window.LFBRFirebase?.currentUser) return;
+      }
+
+      button.disabled = true;
+      const label = type === 'flight'
+        ? ((result.airline || result.airlineCode || 'Volo') + ' ' + (result.outbound?.from || '') + ' → ' + (result.outbound?.to || ''))
+        : (result.name || 'Hotel');
+
+      await window.LFBRFirebase.createPriceWatch({
+        tripId: state.currentTrip?.id || '',
+        type,
+        label,
+        query: search.query,
+        currency: result.currency || 'EUR',
+        price: Number(result.price),
+        alertMode: 'new_low',
+        source: search.source || 'provider',
+        live: true
+      });
+
+      toast('Monitoraggio prezzo attivato');
+      button.textContent = '✓ Monitorato';
+      activateTripTab('prices');
+    } catch (error) {
+      toast(error.message || 'Impossibile attivare il monitoraggio');
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function refreshPriceWatches() {
+    if (!els.watchesList) return;
+    if (!window.LFBRFirebase?.currentUser) {
+      els.watchesList.innerHTML = '<div class="cloud-empty"><span>🔐</span><strong>Accedi per monitorare i prezzi</strong><p>I monitoraggi sono legati al tuo account Google.</p></div>';
+      return;
+    }
+
+    els.watchesList.innerHTML = '<div class="cloud-loading">Caricamento monitoraggi…</div>';
+    try {
+      const watches = await window.LFBRFirebase.loadPriceWatches();
+      if (!watches.length) {
+        els.watchesList.innerHTML = '<div class="cloud-empty"><span>🔔</span><strong>Nessun prezzo monitorato</strong><p>Apri Voli o Hotel e premi “Monitora” su un risultato live.</p></div>';
+        return;
+      }
+
+      els.watchesList.innerHTML = watches.map((watch, index) => {
+        const initial = Number(watch.initialPrice || 0);
+        const last = Number(watch.lastPrice || initial);
+        const best = Number(watch.bestPrice || last);
+        const change = initial > 0 ? ((last - initial) / initial) * 100 : 0;
+        const changeText = (change > 0 ? '+' : '') + change.toFixed(1) + '%';
+        return '<article class="watch-card ' + (watch.alertPending ? 'alert' : '') + '">' +
+          '<div class="watch-icon">' + (watch.type === 'flight' ? '✈️' : '🏨') + '</div>' +
+          '<div class="watch-main"><div class="watch-title-row"><strong>' + escapeHtml(watch.label) + '</strong>' +
+            (watch.alertPending ? '<span class="alert-chip">Prezzo interessante</span>' : '') + '</div>' +
+            '<div class="watch-prices"><span>Inizio <b>' + money(initial, watch.currency) + '</b></span><span>Ora <b>' + money(last, watch.currency) + '</b></span><span>Minimo <b>' + money(best, watch.currency) + '</b></span><span class="' + (change <= 0 ? 'down' : 'up') + '">' + changeText + '</span></div>' +
+            '<small>' + (watch.lastCheckedAtMs ? 'Ultimo controllo ' + relativeTime(watch.lastCheckedAtMs) : 'In attesa del primo controllo automatico') +
+              (watch.lastError ? ' · ' + escapeHtml(watch.lastError) : '') + '</small>' +
+          '</div>' +
+          '<div class="watch-actions"><button type="button" data-watch-action="toggle" data-watch-index="' + index + '">' + (watch.enabled ? 'Pausa' : 'Riprendi') + '</button>' +
+            '<button class="danger-mini" type="button" data-watch-action="delete" data-watch-index="' + index + '">Elimina</button></div>' +
+        '</article>';
+      }).join('');
+      els.watchesList._watches = watches;
+    } catch (error) {
+      els.watchesList.innerHTML = '<div class="cloud-error"><strong>Monitoraggi non disponibili</strong><p>' + escapeHtml(error.message || 'Riprova') + '</p></div>';
+    }
+  }
+
+  async function handleWatchAction(event) {
+    const button = event.target.closest('[data-watch-action]');
+    if (!button) return;
+    const watches = els.watchesList?._watches || [];
+    const watch = watches[Number(button.dataset.watchIndex)];
+    if (!watch) return;
+
+    try {
+      button.disabled = true;
+      if (button.dataset.watchAction === 'toggle') {
+        await window.LFBRFirebase.updatePriceWatch(watch.id, { enabled: !watch.enabled });
+        toast(watch.enabled ? 'Monitoraggio in pausa' : 'Monitoraggio riattivato');
+      }
+      if (button.dataset.watchAction === 'delete') {
+        if (!window.confirm('Eliminare questo monitoraggio prezzo?')) return;
+        await window.LFBRFirebase.deletePriceWatch(watch.id);
+        toast('Monitoraggio eliminato');
+      }
+      await refreshPriceWatches();
+    } catch (error) {
+      toast(error.message || 'Operazione non riuscita');
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  function money(value, currency = 'EUR') {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return '—';
+    try {
+      return new Intl.NumberFormat('it-IT', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
+    } catch (error) {
+      return amount.toFixed(0) + ' ' + currency;
+    }
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat('it-IT', {
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+    }).format(date);
+  }
+
+  function relativeTime(ms) {
+    if (!ms) return '';
+    const diff = Date.now() - Number(ms);
+    const hours = Math.floor(diff / 3600000);
+    if (hours < 1) return 'da meno di un’ora';
+    if (hours < 24) return hours + ' h fa';
+    return Math.floor(hours / 24) + ' g fa';
   }
 
   function profileSnapshot() {
