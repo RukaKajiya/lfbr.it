@@ -281,6 +281,13 @@ export async function createPriceWatch(input) {
   const user = await ensureSignedIn();
   if (!input?.live) throw new Error('Puoi monitorare solo prezzi provenienti da una ricerca live.');
 
+  const existingQuery = query(collection(db, 'priceWatches'), where('ownerId', '==', user.uid));
+  const existingSnap = await getDocs(existingQuery);
+  const activeCount = existingSnap.docs.filter(item => item.data()?.enabled === true).length;
+  if (activeCount >= 5) {
+    throw new Error('Con il piano SerpApi Free puoi tenere al massimo 5 monitoraggi attivi. Metti in pausa o elimina un monitoraggio prima di aggiungerne un altro.');
+  }
+
   const ref = doc(collection(db, 'priceWatches'));
   const price = Number(input.price);
   if (!(price > 0)) throw new Error('Prezzo non valido.');
@@ -305,7 +312,7 @@ export async function createPriceWatch(input) {
     ...(Number(input.alertPercent) > 0 ? { alertPercent: Number(input.alertPercent) } : {}),
     enabled: true,
     live: true,
-    source: cleanText(input.source || 'provider', 40),
+    source: cleanText(input.source || 'serpapi', 40),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   };
