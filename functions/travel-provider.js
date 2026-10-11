@@ -13,10 +13,11 @@ function configured() {
 function providerMode() {
   if (!configured()) return 'demo';
   const explicit = env('AMADEUS_MODE').trim().toLowerCase();
-  if (explicit === 'production' || explicit === 'live') return 'live';
-  if (explicit === 'test') return 'test';
   const host = (env('AMADEUS_HOST') || DEFAULT_HOST).toLowerCase();
-  return host.includes('test.api.amadeus.com') ? 'test' : 'live';
+
+  if (explicit === 'test' || host.includes('test.api.amadeus.com')) return 'test';
+  if (explicit === 'production' || explicit === 'live') return 'live';
+  return host.includes('api.amadeus.com') ? 'live' : 'test';
 }
 
 async function getToken() {
