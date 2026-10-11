@@ -10,6 +10,15 @@ function configured() {
   return Boolean(env('AMADEUS_CLIENT_ID') && env('AMADEUS_CLIENT_SECRET'));
 }
 
+function providerMode() {
+  if (!configured()) return 'demo';
+  const explicit = env('AMADEUS_MODE').trim().toLowerCase();
+  if (explicit === 'production' || explicit === 'live') return 'live';
+  if (explicit === 'test') return 'test';
+  const host = (env('AMADEUS_HOST') || DEFAULT_HOST).toLowerCase();
+  return host.includes('test.api.amadeus.com') ? 'test' : 'live';
+}
+
 async function getToken() {
   if (!configured()) throw new Error('provider_not_configured');
   if (tokenCache.token && Date.now() < tokenCache.expiresAt - 30000) return tokenCache.token;
@@ -215,7 +224,14 @@ export async function searchFlights(query, { allowDemo = true } = {}) {
     .filter(item => item.price > 0)
     .sort((a, b) => a.price - b.price);
 
-  return { mode: 'live', source: 'amadeus', live: true, query: normalized, results };
+  const mode = providerMode();
+  return {
+    mode,
+    source: mode === 'live' ? 'amadeus' : 'amadeus-test',
+    live: mode === 'live',
+    query: normalized,
+    results
+  };
 }
 
 function normalizeHotelOffer(hotel, offer, roomQuantity = 1) {
@@ -296,7 +312,16 @@ export async function searchHotels(query, { allowDemo = true } = {}) {
   });
 
   const hotels = (hotelsJson?.data || []).slice(0, 20);
-  if (!hotels.length) return { mode: 'live', source: 'amadeus', live: true, query: normalized, results: [] };
+  if (!hotels.length) {
+    const mode = providerMode();
+    return {
+      mode,
+      source: mode === 'live' ? 'amadeus' : 'amadeus-test',
+      live: mode === 'live',
+      query: normalized,
+      results: []
+    };
+  }
 
   const hotelIds = hotels.map(hotel => hotel.hotelId).filter(Boolean).join(',');
   const offersJson = await amadeusGet('/v3/shopping/hotel-offers', {
@@ -316,13 +341,22 @@ export async function searchHotels(query, { allowDemo = true } = {}) {
     return offer ? normalizeHotelOffer(baseHotel, offer, normalized.roomQuantity) : null;
   }).filter(Boolean).filter(item => item.price > 0).sort((a, b) => a.price - b.price);
 
-  return { mode: 'live', source: 'amadeus', live: true, query: normalized, results };
+  const mode = providerMode();
+  return {
+    mode,
+    source: mode === 'live' ? 'amadeus' : 'amadeus-test',
+    live: mode === 'live',
+    query: normalized,
+    results
+  };
 }
 
 export function providerStatus() {
+  const mode = providerMode();
   return {
     configured: configured(),
-    mode: configured() ? 'live' : 'demo',
-    provider: configured() ? 'amadeus' : 'demo'
+    mode,
+    provider: configured() ? 'amadeus' : 'demo',
+    host: configured() ? (env('AMADEUS_HOST') || DEFAULT_HOST) : null
   };
 }
