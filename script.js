@@ -1172,8 +1172,16 @@
       if (!response.ok) throw new Error('backend_unavailable');
       const data = await response.json();
       state.travelProvider = data;
-      els.providerBadge.textContent = data.configured ? 'Prezzi live · Amadeus' : 'Modalità demo · provider da configurare';
-      els.providerBadge.dataset.mode = data.configured ? 'live' : 'demo';
+      if (data.mode === 'live') {
+        els.providerBadge.textContent = 'Prezzi live · Amadeus production';
+        els.providerBadge.dataset.mode = 'live';
+      } else if (data.mode === 'test') {
+        els.providerBadge.textContent = 'Amadeus test · non monitorabile';
+        els.providerBadge.dataset.mode = 'test';
+      } else {
+        els.providerBadge.textContent = 'Modalità demo · provider da configurare';
+        els.providerBadge.dataset.mode = 'demo';
+      }
     } catch (error) {
       state.travelProvider = { configured: false, mode: 'offline' };
       els.providerBadge.textContent = 'Backend prezzi non disponibile';
@@ -1318,7 +1326,10 @@
     if (data.live) {
       return '<div class="booking-live">● ' + count + ' risultati live · fonte ' + escapeHtml(data.source || 'provider') + '</div>';
     }
-    return '<div class="booking-demo">Modalità demo: questi ' + noun + ' e prezzi sono simulati. Configura il provider per dati reali e monitoraggio.</div>';
+    if (data.mode === 'test') {
+      return '<div class="booking-test">Ambiente Amadeus test: risultati utili per lo sviluppo ma non trattati come prezzi live e non monitorabili.</div>';
+    }
+    return '<div class="booking-demo">Modalità demo: questi ' + noun + ' e prezzi sono simulati. Configura il provider production per dati reali e monitoraggio.</div>';
   }
 
   function saveBestTravelQuote(type, data) {
