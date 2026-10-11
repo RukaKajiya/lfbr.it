@@ -1173,13 +1173,10 @@
       const data = await response.json();
       state.travelProvider = data;
       if (data.mode === 'live') {
-        els.providerBadge.textContent = 'Prezzi live · Amadeus production';
+        els.providerBadge.textContent = 'Google Flights + Hotels · SerpApi';
         els.providerBadge.dataset.mode = 'live';
-      } else if (data.mode === 'test') {
-        els.providerBadge.textContent = 'Amadeus test · non monitorabile';
-        els.providerBadge.dataset.mode = 'test';
       } else {
-        els.providerBadge.textContent = 'Modalità demo · provider da configurare';
+        els.providerBadge.textContent = 'Modalità demo · aggiungi SERPAPI_KEY';
         els.providerBadge.dataset.mode = 'demo';
       }
     } catch (error) {
@@ -1246,11 +1243,13 @@
 
     const button = $('button[type="submit"]', els.hotelForm);
     const query = {
+      destinationName: destination.name + ', ' + destination.country,
       latitude: destination.center[0],
       longitude: destination.center[1],
       checkInDate: $('#hotelCheckIn')?.value || '',
       checkOutDate: $('#hotelCheckOut')?.value || '',
       adults: Number($('#hotelAdults')?.value || 1),
+      children: Number(state.currentTrip.profile?.children || 0),
       roomQuantity: Number($('#hotelRooms')?.value || 1),
       radius: Number($('#hotelRadius')?.value || 15)
     };
@@ -1297,7 +1296,7 @@
           '<small>' + formatDateTime(outbound.departure) + ' · ' + escapeHtml(outbound.duration || '') + ' · ' + (direct ? 'Diretto' : (outbound.stops + ' scalo/i')) + '</small>' +
           (inbound.from ? '<small>Ritorno: ' + escapeHtml(inbound.from) + ' → ' + escapeHtml(inbound.to) + ' · ' + formatDateTime(inbound.departure) + '</small>' : '') +
         '</div></div>' +
-        '<div class="booking-price"><small>Totale</small><strong>' + money(item.price, item.currency) + '</strong>' +
+        '<div class="booking-price"><small>Prezzo Google Flights</small><strong>' + money(item.price, item.currency) + '</strong>' +
           (data.live ? '<button type="button" data-watch-type="flight" data-result-index="' + index + '">🔔 Monitora</button>' : '<span class="demo-chip">DEMO</span>') +
         '</div></article>';
     }).join('');
@@ -1315,8 +1314,10 @@
       return '<article class="booking-result hotel-result ' + (index === 0 ? 'best' : '') + '">' +
         '<div class="booking-result-main"><div class="booking-route"><span>🏨 Hotel</span><strong>' + escapeHtml(item.name || 'Hotel') + '</strong>' +
           '<small>' + (item.distance != null ? escapeHtml(item.distance + ' ' + (item.distanceUnit || 'KM') + ' dal centro') : 'Destinazione selezionata') +
-          (item.room ? ' · ' + escapeHtml(item.room) : '') + (item.board ? ' · ' + escapeHtml(item.board) : '') + '</small></div></div>' +
+          (item.room ? ' · ' + escapeHtml(item.room) : '') + (item.rating ? ' · ★ ' + escapeHtml(item.rating) + (item.reviews ? ' (' + escapeHtml(item.reviews) + ')' : '') : '') +
+          (item.board ? ' · ' + escapeHtml(item.board) : '') + '</small></div></div>' +
         '<div class="booking-price"><small>Soggiorno</small><strong>' + money(item.price, item.currency) + '</strong>' +
+          (item.pricePerNight ? '<small>' + money(item.pricePerNight, item.currency) + ' / notte</small>' : '') +
           (data.live ? '<button type="button" data-watch-type="hotel" data-result-index="' + index + '">🔔 Monitora</button>' : '<span class="demo-chip">DEMO</span>') +
         '</div></article>';
     }).join('');
@@ -1326,10 +1327,7 @@
     if (data.live) {
       return '<div class="booking-live">● ' + count + ' risultati live · fonte ' + escapeHtml(data.source || 'provider') + '</div>';
     }
-    if (data.mode === 'test') {
-      return '<div class="booking-test">Ambiente Amadeus test: risultati utili per lo sviluppo ma non trattati come prezzi live e non monitorabili.</div>';
-    }
-    return '<div class="booking-demo">Modalità demo: questi ' + noun + ' e prezzi sono simulati. Configura il provider production per dati reali e monitoraggio.</div>';
+    return '<div class="booking-demo">Modalità demo: questi ' + noun + ' e prezzi sono simulati. Aggiungi SERPAPI_KEY lato server per usare Google Flights e Google Hotels.</div>';
   }
 
   function saveBestTravelQuote(type, data) {
@@ -1403,7 +1401,7 @@
         currency: result.currency || 'EUR',
         price: Number(result.price),
         alertMode: 'new_low',
-        source: search.source || 'provider',
+        source: search.source || 'serpapi',
         live: true
       });
 
