@@ -324,7 +324,7 @@
 
     els.timeline.addEventListener('click', handleStopAction);
 
-    $('.trip-tab').forEach(button => {
+    $$('.trip-tab').forEach(button => {
       button.addEventListener('click', () => activateTripTab(button.dataset.tripTab));
     });
     els.flightForm?.addEventListener('submit', searchFlights);
@@ -1117,13 +1117,13 @@
     const next = valid.includes(name) ? name : 'overview';
     state.activeTripTab = next;
 
-    $('.trip-tab').forEach(button => {
+    $$('.trip-tab').forEach(button => {
       const active = button.dataset.tripTab === next;
       button.classList.toggle('active', active);
       button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
 
-    $('[data-trip-panel]').forEach(panel => {
+    $$('[data-trip-panel]').forEach(panel => {
       const active = panel.dataset.tripPanel === next;
       panel.hidden = !active;
       panel.classList.toggle('active', active);
