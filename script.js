@@ -1156,7 +1156,7 @@
     setValue('#flightChildren', profile.children || 0);
     setValue('#hotelCheckIn', profile.startDate || '');
     setValue('#hotelCheckOut', profile.endDate || '');
-    setValue('#hotelAdults', Math.max(1, Number(profile.adults || 1) + Number(profile.children || 0)));
+    setValue('#hotelAdults', Math.max(1, Number(profile.adults || 1)));
 
     const today = formatDateInput(new Date());
     ['#flightDeparture','#flightReturn','#hotelCheckIn','#hotelCheckOut'].forEach(selector => {
