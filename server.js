@@ -31,7 +31,7 @@ app.use('/api/travel', (req, res, next) => {
   entry.count += 1;
   travelRate.set(key, entry);
 
-  if (entry.count > 60) {
+  if (entry.count > 20) {
     res.set('Retry-After', '600');
     return res.status(429).json({
       ok: false,
@@ -54,9 +54,12 @@ function sendApiError(res, error) {
 
 function friendlyApiMessage(code) {
   return ({
-    provider_not_configured: 'Provider viaggi non configurato.',
+    provider_not_configured: 'SerpApi non è ancora configurato. Aggiungi SERPAPI_KEY lato server.',
+    provider_quota_exceeded: 'Hai raggiunto o superato il limite di ricerche SerpApi del piano attuale.',
+    provider_invalid_response: 'SerpApi ha restituito una risposta non valida.',
     invalid_airport_code: 'Inserisci codici IATA validi di 3 lettere.',
     missing_departure_date: 'Inserisci la data di partenza.',
+    missing_hotel_destination: 'Destinazione hotel non valida.',
     invalid_destination_coordinates: 'Coordinate destinazione non valide.',
     missing_hotel_dates: 'Inserisci check-in e check-out.'
   })[code] || 'Il provider viaggi non ha risposto correttamente.';
