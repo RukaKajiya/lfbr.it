@@ -15,7 +15,7 @@ window.LFBR_TRAVEL_DATA = {
   ],
   destinations: [
     {
-      id:"tokyo", name:"Tokyo", country:"Giappone", emoji:"🇯🇵",
+      id:"tokyo", name:"Tokyo", country:"Giappone", emoji:"🇯🇵", flightCode:"TYO",
       center:[35.6762,139.6503], avgDaily:190,
       pitch:"Metropoli perfetta per tecnologia, anime, quartieri diversi e cibo.",
       tags:["technology","anime","food","shopping","nightlife","culture","unusual"],
@@ -31,7 +31,7 @@ window.LFBR_TRAVEL_DATA = {
       ]
     },
     {
-      id:"kyoto", name:"Kyoto", country:"Giappone", emoji:"🇯🇵",
+      id:"kyoto", name:"Kyoto", country:"Giappone", emoji:"🇯🇵", flightCode:"KIX",
       center:[35.0116,135.7681], avgDaily:150,
       pitch:"Templi, quartieri storici, natura e ritmi più tranquilli.",
       tags:["culture","nature","food","photo","family"],
@@ -46,7 +46,7 @@ window.LFBR_TRAVEL_DATA = {
       ]
     },
     {
-      id:"seoul", name:"Seoul", country:"Corea del Sud", emoji:"🇰🇷",
+      id:"seoul", name:"Seoul", country:"Corea del Sud", emoji:"🇰🇷", flightCode:"SEL",
       center:[37.5665,126.9780], avgDaily:145,
       pitch:"Design, K-culture, quartieri creativi, street food e tecnologia.",
       tags:["technology","food","shopping","nightlife","culture","unusual","photo"],
@@ -61,7 +61,7 @@ window.LFBR_TRAVEL_DATA = {
       ]
     },
     {
-      id:"barcelona", name:"Barcellona", country:"Spagna", emoji:"🇪🇸",
+      id:"barcelona", name:"Barcellona", country:"Spagna", emoji:"🇪🇸", flightCode:"BCN",
       center:[41.3874,2.1686], avgDaily:135,
       pitch:"Architettura, tapas, mare, quartieri vivi e passeggiate.",
       tags:["culture","food","beach","nightlife","photo","shopping"],
@@ -76,7 +76,7 @@ window.LFBR_TRAVEL_DATA = {
       ]
     },
     {
-      id:"lisbon", name:"Lisbona", country:"Portogallo", emoji:"🇵🇹",
+      id:"lisbon", name:"Lisbona", country:"Portogallo", emoji:"🇵🇹", flightCode:"LIS",
       center:[38.7223,-9.1393], avgDaily:110,
       pitch:"Panorami, quartieri storici, cucina e gite facili nei dintorni.",
       tags:["culture","food","photo","nightlife","beach","unusual"],
@@ -91,7 +91,7 @@ window.LFBR_TRAVEL_DATA = {
       ]
     },
     {
-      id:"rome", name:"Roma", country:"Italia", emoji:"🇮🇹",
+      id:"rome", name:"Roma", country:"Italia", emoji:"🇮🇹", flightCode:"ROM",
       center:[41.9028,12.4964], avgDaily:125,
       pitch:"Storia, arte, cucina e quartieri da esplorare a piedi.",
       tags:["culture","food","museums","photo","family"],
@@ -106,7 +106,7 @@ window.LFBR_TRAVEL_DATA = {
       ]
     },
     {
-      id:"london", name:"Londra", country:"Regno Unito", emoji:"🇬🇧",
+      id:"london", name:"Londra", country:"Regno Unito", emoji:"🇬🇧", flightCode:"LON",
       center:[51.5072,-0.1276], avgDaily:200,
       pitch:"Musei, quartieri, musical, mercati e cultura pop.",
       tags:["museums","culture","shopping","food","nightlife","unusual","family"],
@@ -121,7 +121,7 @@ window.LFBR_TRAVEL_DATA = {
       ]
     },
     {
-      id:"singapore", name:"Singapore", country:"Singapore", emoji:"🇸🇬",
+      id:"singapore", name:"Singapore", country:"Singapore", emoji:"🇸🇬", flightCode:"SIN",
       center:[1.3521,103.8198], avgDaily:170,
       pitch:"Architettura futuristica, food court, giardini e multiculturalità.",
       tags:["technology","food","nature","family","photo","shopping","unusual"],
