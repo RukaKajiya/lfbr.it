@@ -18,7 +18,11 @@ Web app per organizzare viaggi in base a gusti, budget, durata e ritmo. Il proge
 - Google Authentication;
 - sincronizzazione profilo e viaggi su Cloud Firestore;
 - area "I miei viaggi" con apertura, rinomina, duplicazione ed eliminazione;
-- stato viaggio: bozza, pianificato, in corso, concluso.
+- stato viaggio: bozza, pianificato, in corso, concluso;
+- ricerca voli e hotel tramite backend;
+- modalità demo esplicita quando il provider non è configurato;
+- preventivo viaggio con volo, hotel e attività;
+- monitoraggio prezzi Firestore con controllo programmato ogni 6 ore.
 
 ## Dati e persistenza
 
@@ -27,7 +31,10 @@ Web app per organizzare viaggi in base a gusti, budget, durata e ritmo. Il proge
 - `firebase-client.js`: Authentication e Firestore.
 - `firestore.rules`: accesso ai dati privati limitato al proprietario.
 - `firebase-applet-config.json`: configurazione pubblica del client Firebase.
-- `firebase.json`, `.firebaserc`, `firestore.indexes.json`: configurazione versionata per il deploy Firebase.
+- `firebase.json`, `.firebaserc`, `firestore.indexes.json`: configurazione versionata per il deploy Firebase;
+- `functions/travel-provider.js`: adapter server-side per voli e hotel;
+- `functions/index.js`: controllo programmato dei prezzi;
+- `functions/.env.example`: nomi delle variabili ambiente richieste.
 
 La configurazione Web Firebase contiene identificatori client pubblici e non deve contenere service-account key, password o altri segreti server-side.
 
@@ -54,6 +61,7 @@ Campi principali:
 - score
 - profile
 - itinerary
+- travelQuotes
 - isPublic
 - status
 - createdAt
@@ -85,3 +93,42 @@ Per l'accesso Google verificare che i domini usati dall'app siano presenti in Fi
 ## Limiti attuali della beta
 
 Il dataset turistico è ancora locale e selezionato manualmente. Costi, durate e descrizioni sono indicativi. Il prossimo passaggio architetturale è collegare un provider esterno per POI, orari e dati aggiornati, lasciando Firestore come database dei dati utente e dei viaggi.
+
+
+### priceWatches/{watchId}
+
+Contiene i criteri di ricerca e lo stato del monitoraggio:
+- ownerId
+- tripId opzionale
+- type: flight | hotel
+- query
+- initialPrice
+- lastPrice
+- bestPrice
+- alertMode
+- enabled
+- lastCheckedAt
+
+Gli snapshot storici sono salvati in `priceWatches/{watchId}/snapshots`.
+
+## Provider voli e hotel
+
+Il backend è già predisposto per Amadeus Self-Service. Senza credenziali, la ricerca funziona in modalità demo chiaramente etichettata e il pulsante di monitoraggio non viene abilitato.
+
+Configurare esclusivamente lato server:
+
+```env
+AMADEUS_CLIENT_ID=...
+AMADEUS_CLIENT_SECRET=...
+AMADEUS_HOST=https://test.api.amadeus.com
+```
+
+Non inserire mai queste credenziali in `firebase-applet-config.json`, `index.html`, `script.js` o altri file client-side.
+
+Per AI Studio / Cloud Run impostare le variabili nell'ambiente del servizio. Per Firebase Functions configurarle nell'ambiente di deploy (o in un file locale `functions/.env` non versionato).
+
+## Monitoraggio prezzi
+
+`checkTravelPrices` è una Firebase scheduled function configurata ogni 6 ore. Controlla al massimo 100 watch attivi per esecuzione, aggiorna ultimo prezzo e minimo storico e registra uno snapshot. Se il provider non è configurato la funzione termina senza generare prezzi fittizi.
+
+La scheduled function richiede un progetto Firebase che supporti Cloud Functions/Cloud Scheduler e deve essere effettivamente distribuita; la sola sincronizzazione GitHub non garantisce il deploy della funzione.
