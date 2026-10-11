@@ -49,7 +49,7 @@ service cloud.firestore {
              data.keys().hasOnly([
                'id', 'ownerId', 'destinationId',
                'title', 'score', 'profile', 'itinerary',
-               'isPublic', 'status',
+               'travelQuotes', 'isPublic', 'status',
                'createdAt', 'updatedAt'
              ]) &&
              isValidId(data.id) &&
@@ -62,6 +62,7 @@ service cloud.firestore {
              (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 100)) &&
              (!('profile' in data) || data.profile is map) &&
              (!('itinerary' in data) || (data.itinerary is list && data.itinerary.size() <= 30)) &&
+             (!('travelQuotes' in data) || data.travelQuotes is map) &&
              (!('isPublic' in data) || data.isPublic is bool) &&
              validTripStatus(data.status) &&
              data.createdAt is timestamp &&
@@ -119,12 +120,99 @@ service cloud.firestore {
                        request.resource.data.updatedAt == request.time &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                          'title', 'score', 'profile', 'itinerary',
-                         'isPublic', 'status', 'updatedAt'
+                         'travelQuotes', 'isPublic', 'status', 'updatedAt'
                        ]);
 
       allow delete: if isSignedIn() &&
                        isValidId(tripId) &&
                        resource.data.ownerId == request.auth.uid;
+    }
+
+
+    function validWatchType(type) {
+      return type == 'flight' || type == 'hotel';
+    }
+
+    function validAlertMode(mode) {
+      return mode == 'new_low' ||
+             mode == 'any_drop' ||
+             mode == 'below' ||
+             mode == 'drop_pct';
+    }
+
+    function validPriceWatch(data) {
+      return data.keys().hasAll([
+               'id', 'ownerId', 'type', 'label', 'query',
+               'currency', 'initialPrice', 'lastPrice', 'bestPrice',
+               'alertMode', 'enabled', 'live',
+               'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'id', 'ownerId', 'tripId',
+               'type', 'label', 'query', 'currency',
+               'initialPrice', 'lastPrice', 'bestPrice',
+               'alertMode', 'alertBelow', 'alertPercent',
+               'enabled', 'live', 'source',
+               'lastCheckedAt', 'lastError',
+               'alertPending', 'alertReason', 'alertTriggeredAt',
+               'createdAt', 'updatedAt'
+             ]) &&
+             isValidId(data.id) &&
+             data.ownerId == request.auth.uid &&
+             isValidId(data.ownerId) &&
+             (!('tripId' in data) || (data.tripId is string && data.tripId.size() <= 128)) &&
+             validWatchType(data.type) &&
+             data.label is string &&
+             data.label.size() > 0 &&
+             data.label.size() <= 160 &&
+             data.query is map &&
+             data.currency is string &&
+             data.currency.size() <= 8 &&
+             data.initialPrice is number &&
+             data.initialPrice > 0 &&
+             data.lastPrice is number &&
+             data.lastPrice > 0 &&
+             data.bestPrice is number &&
+             data.bestPrice > 0 &&
+             validAlertMode(data.alertMode) &&
+             (!('alertBelow' in data) || data.alertBelow is number) &&
+             (!('alertPercent' in data) || data.alertPercent is number) &&
+             data.enabled is bool &&
+             data.live == true &&
+             (!('source' in data) || data.source is string) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    match /priceWatches/{watchId} {
+      allow get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(watchId) &&
+                       validPriceWatch(request.resource.data) &&
+                       request.resource.data.id == watchId &&
+                       request.resource.data.createdAt == request.time &&
+                       request.resource.data.updatedAt == request.time;
+
+      allow update: if isSignedIn() &&
+                       resource.data.ownerId == request.auth.uid &&
+                       request.resource.data.ownerId == resource.data.ownerId &&
+                       request.resource.data.id == resource.data.id &&
+                       request.resource.data.createdAt == resource.data.createdAt &&
+                       request.resource.data.updatedAt == request.time &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                         'label', 'alertMode', 'alertBelow',
+                         'alertPercent', 'enabled', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+
+      match /snapshots/{snapshotId} {
+        allow read: if isSignedIn() &&
+          get(/databases/$(database)/documents/priceWatches/$(watchId)).data.ownerId == request.auth.uid;
+        allow write: if false;
+      }
     }
 
     match /{document=**} {
