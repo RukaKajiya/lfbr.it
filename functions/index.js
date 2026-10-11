@@ -1,5 +1,6 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { setGlobalOptions } from 'firebase-functions/v2';
+import { defineSecret } from 'firebase-functions/params';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { searchFlights, searchHotels, providerStatus } from './travel-provider.js';
@@ -8,6 +9,8 @@ initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 2 });
 
 const db = getFirestore();
+const serpApiKey = defineSecret('SERPAPI_KEY');
+const FREE_PLAN_MAX_WATCHES_PER_RUN = 5;
 
 function minPriceResult(results) {
   return (Array.isArray(results) ? results : [])
@@ -39,7 +42,6 @@ function evaluateAlert(watch, price) {
 async function checkOneWatch(docSnap) {
   const watch = docSnap.data();
   const ref = docSnap.ref;
-
   if (!watch?.enabled) return;
 
   try {
@@ -78,7 +80,7 @@ async function checkOneWatch(docSnap) {
       price,
       currency: best.currency || watch.currency || 'EUR',
       checkedAt: FieldValue.serverTimestamp(),
-      source: response.source || 'provider',
+      source: response.source || 'serpapi',
       result: {
         id: best.id || null,
         name: best.name || null,
@@ -97,20 +99,23 @@ async function checkOneWatch(docSnap) {
 }
 
 export const checkTravelPrices = onSchedule({
-  schedule: 'every 6 hours',
+  schedule: '0 8 * * *',
   timeZone: 'Europe/Rome',
   timeoutSeconds: 300,
-  memory: '512MiB'
+  memory: '512MiB',
+  secrets: [serpApiKey]
 }, async () => {
+  process.env.SERPAPI_KEY = serpApiKey.value();
+
   const status = providerStatus();
   if (status.mode !== 'live') {
-    console.log('Travel price monitor skipped: provider_not_production', status.mode);
+    console.log('Travel price monitor skipped: serpapi_not_configured');
     return;
   }
 
   const snap = await db.collection('priceWatches')
     .where('enabled', '==', true)
-    .limit(100)
+    .limit(FREE_PLAN_MAX_WATCHES_PER_RUN)
     .get();
 
   for (const watch of snap.docs) {
