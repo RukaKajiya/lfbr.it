@@ -364,10 +364,16 @@ export async function updatePriceWatch(watchId, changes) {
 
 export async function deletePriceWatch(watchId) {
   const user = await ensureSignedIn();
-  const ref = doc(db, 'priceWatches', cleanText(watchId, 128));
+  const safeId = cleanText(watchId, 128);
+  const ref = doc(db, 'priceWatches', safeId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
   if (snap.data().ownerId !== user.uid) throw new Error('Non puoi eliminare questo monitoraggio.');
+
+  const snapshots = await getDocs(collection(db, 'priceWatches', safeId, 'snapshots'));
+  for (const item of snapshots.docs) {
+    await deleteDoc(item.ref);
+  }
   await deleteDoc(ref);
 }
 
