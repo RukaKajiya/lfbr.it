@@ -105,6 +105,14 @@
 
     if (window.LFBRFirebase?.currentUser) {
       updateAuthUI(window.LFBRFirebase.currentUser);
+      window.LFBRFirebase.loadTravelProfile()
+        .then(profile => {
+          if (profile && !state.profileDirty && !state.currentTrip) {
+            restoreProfile(profile);
+            syncWizard();
+          }
+        })
+        .catch(error => console.warn('Profilo Cloud non caricato:', error));
     }
   }
 
