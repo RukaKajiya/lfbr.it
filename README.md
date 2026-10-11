@@ -125,10 +125,10 @@ AMADEUS_HOST=https://test.api.amadeus.com
 
 Non inserire mai queste credenziali in `firebase-applet-config.json`, `index.html`, `script.js` o altri file client-side.
 
-Per AI Studio / Cloud Run impostare le variabili nell'ambiente del servizio. Per Firebase Functions configurarle nell'ambiente di deploy (o in un file locale `functions/.env` non versionato).
+Per AI Studio / Cloud Run impostare le variabili nell'ambiente del servizio. Per Firebase Functions configurarle nell'ambiente di deploy (o in un file locale `functions/.env` non versionato). L'ambiente Amadeus `test` resta esplicitamente non monitorabile; per abilitare il price tracker servono credenziali/host di produzione e `AMADEUS_MODE=production`.
 
 ## Monitoraggio prezzi
 
-`checkTravelPrices` è una Firebase scheduled function configurata ogni 6 ore. Controlla al massimo 100 watch attivi per esecuzione, aggiorna ultimo prezzo e minimo storico e registra uno snapshot. Se il provider non è configurato la funzione termina senza generare prezzi fittizi.
+`checkTravelPrices` è una Firebase scheduled function configurata ogni 6 ore. Controlla al massimo 100 watch attivi per esecuzione, aggiorna ultimo prezzo e minimo storico e registra uno snapshot. Se il provider non è in modalità production la funzione termina senza generare prezzi fittizi o alert basati sui dati di test.
 
 La scheduled function richiede un progetto Firebase che supporti Cloud Functions/Cloud Scheduler e deve essere effettivamente distribuita; la sola sincronizzazione GitHub non garantisce il deploy della funzione.
