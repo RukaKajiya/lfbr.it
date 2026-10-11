@@ -97,7 +97,7 @@
         </div>
         <div class="form-grid">
           <label><span>Partenza da</span><input id="originInput" type="text" placeholder="Es. Bologna"></label>
-          <label id="destinationField"><span>Destinazione</span><select id="destinationSelect"></select></label>
+          <label id="destinationField"><span>Destinazione disponibile nella beta</span><select id="destinationSelect"></select><small class="field-help">Per ora usiamo un dataset selezionato; in seguito collegheremo un provider di luoghi reali.</small></label>
           <label><span>Dal</span><input id="startDate" type="date"></label>
           <label><span>Al</span><input id="endDate" type="date"></label>
         </div>
@@ -162,7 +162,7 @@
     <div>
       <span class="eyebrow">Il tuo viaggio</span>
       <h2 id="tripTitle">Tokyo</h2>
-      <p id="tripSubtitle"></p>
+      <p id="tripSubtitle"></p><span class="trip-status-badge" id="tripStatusBadge" data-status="planned">Pianificato</span>
     </div>
     <div class="trip-score"><strong id="tripScore">0%</strong><span>compatibilità</span></div>
   </div>
@@ -213,15 +213,13 @@
 </footer>
 </div>
 
-<div class="cloud-modal" id="cloudModal" hidden>
+<div class="cloud-modal" id="cloudModal" role="dialog" aria-modal="true" aria-labelledby="cloudModalTitle" hidden>
   <div class="cloud-modal-content">
     <div class="cloud-modal-head">
-      <h3>I tuoi viaggi su Firebase</h3>
+      <div><h3 id="cloudModalTitle">I tuoi viaggi</h3><p>Apri, rinomina, duplica o elimina gli itinerari salvati nel tuo account.</p></div>
       <button class="close-modal-btn" id="closeCloudModalBtn" type="button" aria-label="Chiudi">×</button>
     </div>
-    <div id="cloudTripsList">
-      <p style="color:var(--muted);font-size:12px">Caricamento viaggi dal Cloud...</p>
-    </div>
+    <div id="cloudTripsList"><div class="cloud-loading">Caricamento viaggi…</div></div>
   </div>
 </div>
 
