@@ -123,9 +123,10 @@ function normalizeFlightOffer(offer, carriers = {}) {
 function demoFlights(query) {
   const seed = demoSeed(JSON.stringify(query));
   const base = 95 + (seed % 420);
+  const travelerFactor = Math.max(1, Number(query.adults || 1) + Number(query.children || 0) * 0.7);
   const carriers = ['AZ', 'LH', 'AF', 'KL', 'IB', 'BA'];
   return Array.from({ length: 5 }, (_, index) => {
-    const price = base + index * (17 + (seed % 11));
+    const price = Math.round((base + index * (17 + (seed % 11))) * travelerFactor);
     const departureHour = 6 + ((seed + index * 3) % 11);
     const durationMinutes = 95 + ((seed + index * 29) % 650);
     const arrival = new Date(query.departureDate + 'T' + String(departureHour).padStart(2, '0') + ':10:00');
@@ -249,7 +250,7 @@ function demoHotels(query) {
     longitude: Number(query.longitude) + (2 - index) * 0.007,
     distance: Number((0.8 + index * 1.1).toFixed(1)),
     distanceUnit: 'KM',
-    price: (baseNight + index * 19) * nights,
+    price: (baseNight + index * 19) * nights * Math.max(1, Number(query.roomQuantity || 1)),
     currency: 'EUR',
     room: index % 2 ? 'Camera doppia' : 'Camera standard',
     board: index % 3 === 0 ? 'BREAKFAST' : '',
