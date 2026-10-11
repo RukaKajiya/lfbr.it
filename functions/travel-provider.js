@@ -218,16 +218,18 @@ export async function searchFlights(query, { allowDemo = true } = {}) {
   return { mode: 'live', source: 'amadeus', live: true, query: normalized, results };
 }
 
-function normalizeHotelOffer(hotel, offer) {
+function normalizeHotelOffer(hotel, offer, roomQuantity = 1) {
   const price = offer?.price || {};
+  const perRoom = Number(price.total || price.base || 0);
+  const rooms = Math.max(1, Number(roomQuantity) || 1);
   return {
     id: hotel?.hotelId || '',
     name: hotel?.name || 'Hotel',
-    latitude: hotel?.latitude ?? null,
-    longitude: hotel?.longitude ?? null,
+    latitude: hotel?.geoCode?.latitude ?? hotel?.latitude ?? null,
+    longitude: hotel?.geoCode?.longitude ?? hotel?.longitude ?? null,
     distance: hotel?.distance?.value ?? null,
     distanceUnit: hotel?.distance?.unit || 'KM',
-    price: Number(price.total || price.base || 0),
+    price: perRoom * rooms,
     currency: price.currency || 'EUR',
     room: offer?.room?.typeEstimated?.category || offer?.room?.description?.text || '',
     board: offer?.boardType || '',
@@ -311,7 +313,7 @@ export async function searchHotels(query, { allowDemo = true } = {}) {
   const results = (offersJson?.data || []).map(item => {
     const baseHotel = byId.get(item.hotel?.hotelId) || item.hotel || {};
     const offer = item.offers?.[0];
-    return offer ? normalizeHotelOffer(baseHotel, offer) : null;
+    return offer ? normalizeHotelOffer(baseHotel, offer, normalized.roomQuantity) : null;
   }).filter(Boolean).filter(item => item.price > 0).sort((a, b) => a.price - b.price);
 
   return { mode: 'live', source: 'amadeus', live: true, query: normalized, results };
