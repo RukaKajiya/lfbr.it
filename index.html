@@ -175,6 +175,67 @@
     <button type="button" id="newTripBtn">＋ Nuovo viaggio</button>
   </div>
 
+  <div class="trip-tabs" role="tablist" aria-label="Sezioni viaggio">
+    <button class="trip-tab active" type="button" data-trip-tab="overview">Panoramica</button>
+    <button class="trip-tab" type="button" data-trip-tab="flights">✈️ Voli</button>
+    <button class="trip-tab" type="button" data-trip-tab="hotels">🏨 Hotel</button>
+    <button class="trip-tab" type="button" data-trip-tab="itinerary">🗺️ Itinerario</button>
+    <button class="trip-tab" type="button" data-trip-tab="prices">🔔 Prezzi</button>
+  </div>
+
+  <div class="trip-panel active" data-trip-panel="overview">
+    <div class="overview-grid">
+      <article class="overview-card"><span>✈️</span><small>Volo migliore trovato</small><strong id="overviewFlight">—</strong><p id="overviewFlightMeta">Cerca un volo per stimare il costo.</p></article>
+      <article class="overview-card"><span>🏨</span><small>Hotel migliore trovato</small><strong id="overviewHotel">—</strong><p id="overviewHotelMeta">Cerca un hotel per stimare il soggiorno.</p></article>
+      <article class="overview-card"><span>🎟️</span><small>Attività</small><strong id="overviewActivities">—</strong><p>Costo indicativo delle tappe dell'itinerario.</p></article>
+      <article class="overview-card total"><span>∑</span><small>Totale stimato</small><strong id="overviewTotal">—</strong><p>Volo + hotel + attività per i viaggiatori indicati.</p></article>
+    </div>
+    <div class="provider-note"><span id="travelProviderBadge" class="provider-badge">Verifica provider…</span><p>I prezzi live dipendono dal provider configurato. Se il provider non è ancora collegato, i risultati vengono mostrati chiaramente come demo e non possono essere monitorati.</p></div>
+  </div>
+
+  <div class="trip-panel" data-trip-panel="flights" hidden>
+    <div class="booking-shell">
+      <div class="booking-head"><div><span class="eyebrow">Voli</span><h3>Cerca il volo</h3><p>Usa codici IATA di 3 lettere, per esempio BLQ, MXP, FCO.</p></div></div>
+      <form class="booking-form" id="flightSearchForm">
+        <label><span>Partenza</span><input id="flightOrigin" maxlength="3" placeholder="BLQ" autocomplete="off" required></label>
+        <label><span>Destinazione</span><input id="flightDestination" maxlength="3" readonly></label>
+        <label><span>Andata</span><input id="flightDeparture" type="date" required></label>
+        <label><span>Ritorno</span><input id="flightReturn" type="date"></label>
+        <label><span>Adulti</span><input id="flightAdults" type="number" min="1" max="9" value="2"></label>
+        <label><span>Bambini</span><input id="flightChildren" type="number" min="0" max="8" value="0"></label>
+        <label><span>Classe</span><select id="flightClass"><option value="ECONOMY">Economy</option><option value="PREMIUM_ECONOMY">Premium Economy</option><option value="BUSINESS">Business</option><option value="FIRST">First</option></select></label>
+        <label class="check-label"><input id="flightDirect" type="checkbox"><span>Solo voli diretti</span></label>
+        <button class="primary-btn booking-submit" type="submit">Cerca voli</button>
+      </form>
+      <div class="search-state" id="flightSearchState"></div>
+      <div class="booking-results" id="flightResults"></div>
+    </div>
+  </div>
+
+  <div class="trip-panel" data-trip-panel="hotels" hidden>
+    <div class="booking-shell">
+      <div class="booking-head"><div><span class="eyebrow">Hotel</span><h3>Cerca dove dormire</h3><p>La ricerca usa il centro della destinazione e le date del viaggio.</p></div></div>
+      <form class="booking-form" id="hotelSearchForm">
+        <label><span>Check-in</span><input id="hotelCheckIn" type="date" required></label>
+        <label><span>Check-out</span><input id="hotelCheckOut" type="date" required></label>
+        <label><span>Adulti</span><input id="hotelAdults" type="number" min="1" max="9" value="2"></label>
+        <label><span>Camere</span><input id="hotelRooms" type="number" min="1" max="4" value="1"></label>
+        <label><span>Raggio</span><select id="hotelRadius"><option value="5">5 km</option><option value="10">10 km</option><option value="15" selected>15 km</option><option value="25">25 km</option></select></label>
+        <button class="primary-btn booking-submit" type="submit">Cerca hotel</button>
+      </form>
+      <div class="search-state" id="hotelSearchState"></div>
+      <div class="booking-results" id="hotelResults"></div>
+    </div>
+  </div>
+
+  <div class="trip-panel" data-trip-panel="prices" hidden>
+    <div class="booking-shell">
+      <div class="booking-head"><div><span class="eyebrow">Monitoraggio prezzi</span><h3>Prezzi sotto controllo</h3><p>Il controllo automatico è previsto ogni 6 ore quando il provider live e la Cloud Function sono configurati.</p></div><button class="secondary-btn small" id="refreshWatchesBtn" type="button">Aggiorna elenco</button></div>
+      <div id="priceWatchesList"><div class="cloud-empty"><span>🔔</span><strong>Nessun monitoraggio caricato</strong><p>Accedi e aggiungi un volo o un hotel dai risultati live.</p></div></div>
+    </div>
+  </div>
+
+  <div class="trip-panel" data-trip-panel="itinerary" hidden>
   <div class="trip-layout">
     <div class="itinerary-panel">
       <div class="day-tabs" id="dayTabs"></div>
@@ -188,6 +249,7 @@
       <div class="map-head"><div><strong>Mappa del giorno</strong><span id="mapCaption">Tappe selezionate</span></div><span class="map-badge">OSM</span></div>
       <div id="tripMap" aria-label="Mappa delle tappe del viaggio"></div>
     </div>
+  </div>
   </div>
 </section>
 
