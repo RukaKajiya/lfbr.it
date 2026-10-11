@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "build": "node -e \"console.log('Build successful')\""
+    "check": "node --check server.js && node --check script.js && node --check firebase-client.js",
+    "build": "npm run check"
   },
   "dependencies": {
     "express": "^4.21.2",
