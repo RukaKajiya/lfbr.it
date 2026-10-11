@@ -1,47 +1,69 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-    function incoming() {
-      return request.resource.data;
-    }
-    function existing() {
-      return resource.data;
-    }
     function isSignedIn() {
       return request.auth != null;
     }
+
+    function isValidId(id) {
+      return id is string &&
+             id.size() > 0 &&
+             id.size() <= 128 &&
+             id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isValidUser(data) {
+    function validUser(data) {
       return data.keys().hasAll(['id', 'email', 'createdAt', 'updatedAt']) &&
-             data.keys().hasOnly(['id', 'email', 'displayName', 'createdAt', 'updatedAt']) &&
-             data.id is string && isValidId(data.id) && data.id == request.auth.uid &&
-             data.email is string && data.email.size() <= 256 &&
+             data.keys().hasOnly([
+               'id', 'email', 'displayName',
+               'travelProfile', 'profileUpdatedAt',
+               'createdAt', 'updatedAt'
+             ]) &&
+             data.id == request.auth.uid &&
+             isValidId(data.id) &&
+             data.email is string &&
+             data.email.size() <= 256 &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('travelProfile' in data) || data.travelProfile is map) &&
+             (!('profileUpdatedAt' in data) || data.profileUpdatedAt is timestamp) &&
              data.createdAt is timestamp &&
              data.updatedAt is timestamp;
     }
 
-    function isValidTrip(data) {
-      return data.keys().hasAll(['id', 'ownerId', 'destinationId', 'createdAt', 'updatedAt']) &&
-             data.keys().hasOnly(['id', 'ownerId', 'destinationId', 'title', 'score', 'profile', 'itinerary', 'isPublic', 'createdAt', 'updatedAt']) &&
-             data.id is string && isValidId(data.id) &&
-             data.ownerId is string && isValidId(data.ownerId) && data.ownerId == request.auth.uid &&
-             data.destinationId is string && data.destinationId.size() <= 64 &&
+    function validTripStatus(status) {
+      return status == 'draft' ||
+             status == 'planned' ||
+             status == 'in_progress' ||
+             status == 'completed';
+    }
+
+    function validTrip(data) {
+      return data.keys().hasAll([
+               'id', 'ownerId', 'destinationId',
+               'status', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'id', 'ownerId', 'destinationId',
+               'title', 'score', 'profile', 'itinerary',
+               'isPublic', 'status',
+               'createdAt', 'updatedAt'
+             ]) &&
+             isValidId(data.id) &&
+             data.ownerId == request.auth.uid &&
+             isValidId(data.ownerId) &&
+             data.destinationId is string &&
+             data.destinationId.size() > 0 &&
+             data.destinationId.size() <= 64 &&
              (!('title' in data) || (data.title is string && data.title.size() <= 120)) &&
-             (!('score' in data) || data.score is number) &&
+             (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 100)) &&
              (!('profile' in data) || data.profile is map) &&
              (!('itinerary' in data) || (data.itinerary is list && data.itinerary.size() <= 30)) &&
              (!('isPublic' in data) || data.isPublic is bool) &&
+             validTripStatus(data.status) &&
              data.createdAt is timestamp &&
              data.updatedAt is timestamp;
     }
@@ -49,44 +71,64 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
+
       allow create: if isOwner(userId) &&
-                       isValidId(userId) &&
-                       isValidUser(incoming()) &&
-                       incoming().id == userId &&
-                       incoming().createdAt == request.time &&
-                       incoming().updatedAt == request.time;
+                    isValidId(userId) &&
+                    validUser(request.resource.data) &&
+                    request.resource.data.id == userId &&
+                    request.resource.data.createdAt == request.time &&
+                    request.resource.data.updatedAt == request.time;
+
       allow update: if isOwner(userId) &&
-                       isValidId(userId) &&
-                       isValidUser(incoming()) &&
-                       incoming().id == existing().id &&
-                       incoming().createdAt == existing().createdAt &&
-                       incoming().updatedAt == request.time &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']);
+                    isValidId(userId) &&
+                    validUser(request.resource.data) &&
+                    request.resource.data.id == resource.data.id &&
+                    request.resource.data.createdAt == resource.data.createdAt &&
+                    request.resource.data.updatedAt == request.time &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'email', 'displayName',
+                      'travelProfile', 'profileUpdatedAt',
+                      'updatedAt'
+                    ]);
+
       allow delete: if isOwner(userId) && isValidId(userId);
     }
 
     match /trips/{tripId} {
-      allow get: if (resource.data.isPublic == true) || (isSignedIn() && resource.data.ownerId == request.auth.uid);
-      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.isPublic == true);
+      allow get: if resource.data.isPublic == true ||
+                    (isSignedIn() && resource.data.ownerId == request.auth.uid);
+
+      allow list: if isSignedIn() &&
+                     resource.data.ownerId == request.auth.uid;
+
       allow create: if isSignedIn() &&
                        isValidId(tripId) &&
-                       isValidTrip(incoming()) &&
-                       incoming().id == tripId &&
-                       incoming().ownerId == request.auth.uid &&
-                       incoming().createdAt == request.time &&
-                       incoming().updatedAt == request.time;
+                       validTrip(request.resource.data) &&
+                       request.resource.data.id == tripId &&
+                       request.resource.data.ownerId == request.auth.uid &&
+                       request.resource.data.createdAt == request.time &&
+                       request.resource.data.updatedAt == request.time;
+
       allow update: if isSignedIn() &&
                        isValidId(tripId) &&
-                       isValidTrip(incoming()) &&
-                       existing().ownerId == request.auth.uid &&
-                       incoming().ownerId == existing().ownerId &&
-                       incoming().id == existing().id &&
-                       incoming().createdAt == existing().createdAt &&
-                       incoming().updatedAt == request.time &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['title', 'score', 'profile', 'itinerary', 'isPublic', 'updatedAt']);
+                       resource.data.ownerId == request.auth.uid &&
+                       validTrip(request.resource.data) &&
+                       request.resource.data.id == resource.data.id &&
+                       request.resource.data.ownerId == resource.data.ownerId &&
+                       request.resource.data.createdAt == resource.data.createdAt &&
+                       request.resource.data.updatedAt == request.time &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                         'title', 'score', 'profile', 'itinerary',
+                         'isPublic', 'status', 'updatedAt'
+                       ]);
+
       allow delete: if isSignedIn() &&
                        isValidId(tripId) &&
-                       existing().ownerId == request.auth.uid;
+                       resource.data.ownerId == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
