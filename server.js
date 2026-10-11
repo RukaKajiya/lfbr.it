@@ -17,6 +17,30 @@ const HOST = '0.0.0.0';
 app.disable('x-powered-by');
 app.use(express.json({ limit: '100kb' }));
 
+const travelRate = new Map();
+app.use('/api/travel', (req, res, next) => {
+  const key = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowMs = 10 * 60 * 1000;
+  const current = travelRate.get(key);
+  const entry = !current || now - current.startedAt >= windowMs
+    ? { startedAt: now, count: 0 }
+    : current;
+
+  entry.count += 1;
+  travelRate.set(key, entry);
+
+  if (entry.count > 60) {
+    res.set('Retry-After', '600');
+    return res.status(429).json({
+      ok: false,
+      error: 'rate_limited',
+      message: 'Troppe ricerche in pochi minuti. Riprova più tardi.'
+    });
+  }
+  next();
+});
+
 function sendApiError(res, error) {
   const code = error?.message || 'travel_api_error';
   const status = code.startsWith('invalid_') || code.startsWith('missing_') ? 400 : 502;
