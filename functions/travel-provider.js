@@ -1,72 +1,57 @@
-const DEFAULT_HOST = 'https://test.api.amadeus.com';
-
-let tokenCache = { token: null, expiresAt: 0 };
+const SERPAPI_ENDPOINT = 'https://serpapi.com/search.json';
 
 function env(name) {
   return process.env[name] || '';
 }
 
 function configured() {
-  return Boolean(env('AMADEUS_CLIENT_ID') && env('AMADEUS_CLIENT_SECRET'));
+  return Boolean(env('SERPAPI_KEY'));
 }
 
-function providerMode() {
-  if (!configured()) return 'demo';
-  const explicit = env('AMADEUS_MODE').trim().toLowerCase();
-  const host = (env('AMADEUS_HOST') || DEFAULT_HOST).toLowerCase();
-
-  if (explicit === 'test' || host.includes('test.api.amadeus.com')) return 'test';
-  if (explicit === 'production' || explicit === 'live') return 'live';
-  return host.includes('api.amadeus.com') ? 'live' : 'test';
-}
-
-async function getToken() {
-  if (!configured()) throw new Error('provider_not_configured');
-  if (tokenCache.token && Date.now() < tokenCache.expiresAt - 30000) return tokenCache.token;
-
-  const host = env('AMADEUS_HOST') || DEFAULT_HOST;
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: env('AMADEUS_CLIENT_ID'),
-    client_secret: env('AMADEUS_CLIENT_SECRET')
-  });
-
-  const response = await fetch(host + '/v1/security/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body
-  });
-
-  const json = await response.json();
-  if (!response.ok || !json.access_token) {
-    throw new Error(json?.error_description || json?.error || 'amadeus_auth_failed');
-  }
-
-  tokenCache = {
-    token: json.access_token,
-    expiresAt: Date.now() + (Number(json.expires_in || 0) * 1000)
+function locale() {
+  return {
+    hl: env('SERPAPI_HL') || 'it',
+    gl: env('SERPAPI_GL') || 'it',
+    currency: env('SERPAPI_CURRENCY') || 'EUR'
   };
-  return tokenCache.token;
 }
 
-async function amadeusGet(path, params) {
-  const token = await getToken();
-  const host = env('AMADEUS_HOST') || DEFAULT_HOST;
-  const url = new URL(host + path);
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
+async function serpApiGet(params) {
+  if (!configured()) throw new Error('provider_not_configured');
+
+  const url = new URL(SERPAPI_ENDPOINT);
+  const loc = locale();
+  const merged = {
+    ...loc,
+    ...params,
+    api_key: env('SERPAPI_KEY')
+  };
+
+  Object.entries(merged).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
   });
 
   const response = await fetch(url, {
-    headers: { Authorization: 'Bearer ' + token }
+    headers: { Accept: 'application/json' }
   });
-  const json = await response.json();
-  if (!response.ok) {
-    const message = json?.errors?.[0]?.detail || json?.errors?.[0]?.title || 'travel_provider_error';
-    const error = new Error(message);
-    error.status = response.status;
-    throw error;
+
+  let json = null;
+  try {
+    json = await response.json();
+  } catch (error) {
+    throw new Error('provider_invalid_response');
   }
+
+  if (!response.ok || json?.error) {
+    const message = String(json?.error || 'provider_request_failed');
+    if (response.status === 429 || /limit|quota|searches/i.test(message)) {
+      throw new Error('provider_quota_exceeded');
+    }
+    throw new Error(message.slice(0, 180));
+  }
+
   return json;
 }
 
@@ -74,58 +59,61 @@ function demoSeed(text) {
   return [...String(text || '')].reduce((acc, char) => ((acc * 31) + char.charCodeAt(0)) % 100000, 17);
 }
 
-function isoDurationToText(duration) {
-  if (!duration) return '';
-  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?$/.exec(duration);
-  if (!match) return duration;
-  const hours = Number(match[1] || 0);
-  const mins = Number(match[2] || 0);
+function durationText(minutes) {
+  const value = Number(minutes);
+  if (!Number.isFinite(value) || value <= 0) return '';
+  const hours = Math.floor(value / 60);
+  const mins = value % 60;
   return [hours ? hours + 'h' : '', mins ? mins + 'm' : ''].filter(Boolean).join(' ');
 }
 
-function minutesBetween(start, end) {
-  const a = Date.parse(start);
-  const b = Date.parse(end);
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-  return Math.max(0, Math.round((b - a) / 60000));
+function parseFlightDateTime(value) {
+  if (!value) return '';
+  return String(value).replace(' ', 'T');
 }
 
-function normalizeFlightOffer(offer, carriers = {}) {
-  const itineraries = Array.isArray(offer.itineraries) ? offer.itineraries : [];
-  const mapItinerary = itinerary => {
-    const segments = Array.isArray(itinerary.segments) ? itinerary.segments : [];
-    const first = segments[0] || {};
-    const last = segments[segments.length - 1] || {};
-    return {
-      from: first.departure?.iataCode || '',
-      to: last.arrival?.iataCode || '',
-      departure: first.departure?.at || '',
-      arrival: last.arrival?.at || '',
-      duration: isoDurationToText(itinerary.duration),
-      durationMinutes: minutesBetween(first.departure?.at, last.arrival?.at),
+function travelClassCode(value) {
+  return ({
+    ECONOMY: 1,
+    PREMIUM_ECONOMY: 2,
+    BUSINESS: 3,
+    FIRST: 4
+  })[value] || 1;
+}
+
+function normalizeFlightGroup(group, index) {
+  const segments = Array.isArray(group?.flights) ? group.flights : [];
+  const first = segments[0] || {};
+  const last = segments[segments.length - 1] || {};
+  const airlines = [...new Set(segments.map(item => item.airline).filter(Boolean))];
+
+  return {
+    id: 'serp-flight-' + index + '-' + String(group?.departure_token || '').slice(0, 12),
+    price: Number(group?.price || 0),
+    currency: locale().currency,
+    airlineCode: '',
+    airline: airlines.join(' + ') || 'Compagnia',
+    outbound: segments.length ? {
+      from: first.departure_airport?.id || '',
+      to: last.arrival_airport?.id || '',
+      departure: parseFlightDateTime(first.departure_airport?.time),
+      arrival: parseFlightDateTime(last.arrival_airport?.time),
+      duration: durationText(group?.total_duration),
+      durationMinutes: Number(group?.total_duration || 0) || null,
       stops: Math.max(0, segments.length - 1),
       segments: segments.map(segment => ({
-        carrier: segment.carrierCode || '',
-        carrierName: carriers[segment.carrierCode] || segment.carrierCode || '',
-        number: segment.number || '',
-        from: segment.departure?.iataCode || '',
-        to: segment.arrival?.iataCode || '',
-        departure: segment.departure?.at || '',
-        arrival: segment.arrival?.at || ''
+        carrier: '',
+        carrierName: segment.airline || '',
+        number: segment.flight_number || '',
+        from: segment.departure_airport?.id || '',
+        to: segment.arrival_airport?.id || '',
+        departure: parseFlightDateTime(segment.departure_airport?.time),
+        arrival: parseFlightDateTime(segment.arrival_airport?.time)
       }))
-    };
-  };
-
-  const carrierCodes = offer.validatingAirlineCodes || [];
-  return {
-    id: offer.id,
-    price: Number(offer.price?.grandTotal || offer.price?.total || 0),
-    currency: offer.price?.currency || 'EUR',
-    airlineCode: carrierCodes[0] || itineraries[0]?.segments?.[0]?.carrierCode || '',
-    airline: carriers[carrierCodes[0]] || carrierCodes[0] || 'Compagnia',
-    outbound: itineraries[0] ? mapItinerary(itineraries[0]) : null,
-    inbound: itineraries[1] ? mapItinerary(itineraries[1]) : null,
-    seats: Number(offer.numberOfBookableSeats || 0) || null,
+    } : null,
+    inbound: null,
+    seats: null,
+    departureToken: group?.departure_token || null,
     live: true
   };
 }
@@ -134,41 +122,33 @@ function demoFlights(query) {
   const seed = demoSeed(JSON.stringify(query));
   const base = 95 + (seed % 420);
   const travelerFactor = Math.max(1, Number(query.adults || 1) + Number(query.children || 0) * 0.7);
-  const carriers = ['AZ', 'LH', 'AF', 'KL', 'IB', 'BA'];
+  const carriers = ['ITA Airways', 'Lufthansa', 'Air France', 'KLM', 'Iberia', 'British Airways'];
+
   return Array.from({ length: 5 }, (_, index) => {
     const price = Math.round((base + index * (17 + (seed % 11))) * travelerFactor);
     const departureHour = 6 + ((seed + index * 3) % 11);
     const durationMinutes = 95 + ((seed + index * 29) % 650);
-    const arrival = new Date(query.departureDate + 'T' + String(departureHour).padStart(2, '0') + ':10:00');
-    arrival.setMinutes(arrival.getMinutes() + durationMinutes);
-    const carrier = carriers[(seed + index) % carriers.length];
+    const departure = query.departureDate + 'T' + String(departureHour).padStart(2, '0') + ':10:00';
+    const arrivalDate = new Date(departure);
+    arrivalDate.setMinutes(arrivalDate.getMinutes() + durationMinutes);
 
     return {
       id: 'demo-flight-' + index,
       price,
       currency: 'EUR',
-      airlineCode: carrier,
-      airline: carrier + ' demo',
+      airlineCode: '',
+      airline: carriers[(seed + index) % carriers.length] + ' · demo',
       outbound: {
         from: query.origin,
         to: query.destination,
-        departure: query.departureDate + 'T' + String(departureHour).padStart(2, '0') + ':10:00',
-        arrival: arrival.toISOString().slice(0, 19),
-        duration: Math.floor(durationMinutes / 60) + 'h ' + (durationMinutes % 60) + 'm',
+        departure,
+        arrival: arrivalDate.toISOString().slice(0, 19),
+        duration: durationText(durationMinutes),
         durationMinutes,
         stops: index % 3 === 0 ? 0 : 1,
         segments: []
       },
-      inbound: query.returnDate ? {
-        from: query.destination,
-        to: query.origin,
-        departure: query.returnDate + 'T10:20:00',
-        arrival: query.returnDate + 'T15:50:00',
-        duration: '5h 30m',
-        durationMinutes: 330,
-        stops: index % 2,
-        segments: []
-      } : null,
+      inbound: null,
       seats: null,
       live: false
     };
@@ -186,8 +166,7 @@ export async function searchFlights(query, { allowDemo = true } = {}) {
     nonStop: Boolean(query?.nonStop),
     travelClass: ['ECONOMY', 'PREMIUM_ECONOMY', 'BUSINESS', 'FIRST'].includes(query?.travelClass)
       ? query.travelClass
-      : 'ECONOMY',
-    currencyCode: 'EUR'
+      : 'ECONOMY'
   };
 
   if (!/^[A-Z]{3}$/.test(normalized.origin) || !/^[A-Z]{3}$/.test(normalized.destination)) {
@@ -206,52 +185,87 @@ export async function searchFlights(query, { allowDemo = true } = {}) {
     };
   }
 
-  const json = await amadeusGet('/v2/shopping/flight-offers', {
-    originLocationCode: normalized.origin,
-    destinationLocationCode: normalized.destination,
-    departureDate: normalized.departureDate,
-    returnDate: normalized.returnDate || undefined,
+  const type = normalized.returnDate ? 1 : 2;
+  const json = await serpApiGet({
+    engine: 'google_flights',
+    departure_id: normalized.origin,
+    arrival_id: normalized.destination,
+    outbound_date: normalized.departureDate,
+    return_date: normalized.returnDate || undefined,
+    type,
+    travel_class: travelClassCode(normalized.travelClass),
     adults: normalized.adults,
     children: normalized.children || undefined,
-    nonStop: normalized.nonStop ? 'true' : undefined,
-    travelClass: normalized.travelClass,
-    currencyCode: normalized.currencyCode,
-    max: 15
+    stops: normalized.nonStop ? 1 : 0,
+    sort_by: 2
   });
 
-  const carriers = json?.dictionaries?.carriers || {};
-  const results = (json?.data || [])
-    .map(offer => normalizeFlightOffer(offer, carriers))
-    .filter(item => item.price > 0)
+  const groups = [
+    ...(Array.isArray(json?.best_flights) ? json.best_flights : []),
+    ...(Array.isArray(json?.other_flights) ? json.other_flights : [])
+  ];
+
+  const results = groups
+    .map((group, index) => normalizeFlightGroup(group, index))
+    .filter(item => item.price > 0 && item.outbound)
     .sort((a, b) => a.price - b.price);
 
-  const mode = providerMode();
   return {
-    mode,
-    source: mode === 'live' ? 'amadeus' : 'amadeus-test',
-    live: mode === 'live',
+    mode: 'live',
+    source: 'serpapi-google-flights',
+    live: true,
     query: normalized,
+    priceInsights: json?.price_insights || null,
     results
   };
 }
 
-function normalizeHotelOffer(hotel, offer, roomQuantity = 1) {
-  const price = offer?.price || {};
-  const perRoom = Number(price.total || price.base || 0);
-  const rooms = Math.max(1, Number(roomQuantity) || 1);
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const values = [lat1, lng1, lat2, lng2].map(Number);
+  if (values.some(value => !Number.isFinite(value))) return null;
+  const [a, b, c, d] = values;
+  const R = 6371;
+  const rad = value => value * Math.PI / 180;
+  const x = rad(c - a);
+  const y = rad(d - b);
+  const h = Math.sin(x / 2) ** 2 + Math.cos(rad(a)) * Math.cos(rad(c)) * Math.sin(y / 2) ** 2;
+  return Number((2 * R * Math.asin(Math.sqrt(h))).toFixed(1));
+}
+
+function normalizeHotel(property, query, index) {
+  const totalRate = Number(property?.total_rate?.extracted_lowest || 0);
+  const nightly = Number(
+    property?.rate_per_night?.extracted_lowest ||
+    property?.extracted_price ||
+    0
+  );
+  const nights = Math.max(
+    1,
+    Math.round((Date.parse(query.checkOutDate) - Date.parse(query.checkInDate)) / 86400000)
+  );
+  const price = totalRate > 0 ? totalRate : nightly * nights;
+  const coords = property?.gps_coordinates || {};
+
   return {
-    id: hotel?.hotelId || '',
-    name: hotel?.name || 'Hotel',
-    latitude: hotel?.geoCode?.latitude ?? hotel?.latitude ?? null,
-    longitude: hotel?.geoCode?.longitude ?? hotel?.longitude ?? null,
-    distance: hotel?.distance?.value ?? null,
-    distanceUnit: hotel?.distance?.unit || 'KM',
-    price: perRoom * rooms,
-    currency: price.currency || 'EUR',
-    room: offer?.room?.typeEstimated?.category || offer?.room?.description?.text || '',
-    board: offer?.boardType || '',
-    checkInDate: offer?.checkInDate || '',
-    checkOutDate: offer?.checkOutDate || '',
+    id: String(property?.property_token || 'serp-hotel-' + index),
+    name: property?.name || 'Hotel',
+    latitude: Number(coords.latitude) || null,
+    longitude: Number(coords.longitude) || null,
+    distance: distanceKm(query.latitude, query.longitude, coords.latitude, coords.longitude),
+    distanceUnit: 'KM',
+    price,
+    pricePerNight: nightly || (price > 0 ? Number((price / nights).toFixed(2)) : 0),
+    currency: locale().currency,
+    room: property?.hotel_class || (property?.extracted_hotel_class ? property.extracted_hotel_class + ' stelle' : ''),
+    board: property?.free_cancellation ? 'Cancellazione gratuita' : '',
+    checkInDate: query.checkInDate,
+    checkOutDate: query.checkOutDate,
+    rating: Number(property?.overall_rating || 0) || null,
+    reviews: Number(property?.reviews || 0) || null,
+    amenities: Array.isArray(property?.amenities) ? property.amenities.slice(0, 8) : [],
+    thumbnail: property?.thumbnail || property?.images?.[0]?.thumbnail || null,
+    link: property?.link || null,
+    source: property?.source || property?.prices?.[0]?.source || 'Google Hotels',
     live: true
   };
 }
@@ -262,35 +276,47 @@ function demoHotels(query) {
   const nights = Math.max(1, Math.round((Date.parse(query.checkOutDate) - Date.parse(query.checkInDate)) / 86400000));
   const baseNight = 55 + (seed % 90);
 
-  return names.map((name, index) => ({
-    id: 'demo-hotel-' + index,
-    name: name + ' · demo',
-    latitude: Number(query.latitude) + (index - 2) * 0.009,
-    longitude: Number(query.longitude) + (2 - index) * 0.007,
-    distance: Number((0.8 + index * 1.1).toFixed(1)),
-    distanceUnit: 'KM',
-    price: (baseNight + index * 19) * nights * Math.max(1, Number(query.roomQuantity || 1)),
-    currency: 'EUR',
-    room: index % 2 ? 'Camera doppia' : 'Camera standard',
-    board: index % 3 === 0 ? 'BREAKFAST' : '',
-    checkInDate: query.checkInDate,
-    checkOutDate: query.checkOutDate,
-    live: false
-  }));
+  return names.map((name, index) => {
+    const nightly = baseNight + index * 19;
+    return {
+      id: 'demo-hotel-' + index,
+      name: name + ' · demo',
+      latitude: Number(query.latitude) + (index - 2) * 0.009,
+      longitude: Number(query.longitude) + (2 - index) * 0.007,
+      distance: Number((0.8 + index * 1.1).toFixed(1)),
+      distanceUnit: 'KM',
+      price: nightly * nights,
+      pricePerNight: nightly,
+      currency: 'EUR',
+      room: index % 2 ? 'Camera doppia' : 'Camera standard',
+      board: index % 3 === 0 ? 'Colazione inclusa' : '',
+      checkInDate: query.checkInDate,
+      checkOutDate: query.checkOutDate,
+      rating: Number((4 + ((seed + index) % 9) / 10).toFixed(1)),
+      reviews: 100 + ((seed + index * 53) % 1800),
+      amenities: [],
+      thumbnail: null,
+      link: null,
+      source: 'demo',
+      live: false
+    };
+  });
 }
 
 export async function searchHotels(query, { allowDemo = true } = {}) {
   const normalized = {
+    destinationName: String(query?.destinationName || query?.q || '').trim().slice(0, 120),
     latitude: Number(query?.latitude),
     longitude: Number(query?.longitude),
     checkInDate: String(query?.checkInDate || ''),
     checkOutDate: String(query?.checkOutDate || ''),
-    adults: Math.max(1, Math.min(9, Number(query?.adults) || 1)),
+    adults: Math.max(1, Math.min(12, Number(query?.adults) || 1)),
+    children: Math.max(0, Math.min(8, Number(query?.children) || 0)),
     roomQuantity: Math.max(1, Math.min(4, Number(query?.roomQuantity) || 1)),
     radius: Math.max(1, Math.min(50, Number(query?.radius) || 15))
   };
 
-  if (!Number.isFinite(normalized.latitude) || !Number.isFinite(normalized.longitude)) throw new Error('invalid_destination_coordinates');
+  if (!normalized.destinationName) throw new Error('missing_hotel_destination');
   if (!normalized.checkInDate || !normalized.checkOutDate) throw new Error('missing_hotel_dates');
 
   if (!configured()) {
@@ -304,60 +330,34 @@ export async function searchHotels(query, { allowDemo = true } = {}) {
     };
   }
 
-  const hotelsJson = await amadeusGet('/v1/reference-data/locations/hotels/by-geocode', {
-    latitude: normalized.latitude,
-    longitude: normalized.longitude,
-    radius: normalized.radius,
-    radiusUnit: 'KM',
-    hotelSource: 'ALL'
-  });
-
-  const hotels = (hotelsJson?.data || []).slice(0, 20);
-  if (!hotels.length) {
-    const mode = providerMode();
-    return {
-      mode,
-      source: mode === 'live' ? 'amadeus' : 'amadeus-test',
-      live: mode === 'live',
-      query: normalized,
-      results: []
-    };
-  }
-
-  const hotelIds = hotels.map(hotel => hotel.hotelId).filter(Boolean).join(',');
-  const offersJson = await amadeusGet('/v3/shopping/hotel-offers', {
-    hotelIds,
+  const json = await serpApiGet({
+    engine: 'google_hotels',
+    q: normalized.destinationName,
+    check_in_date: normalized.checkInDate,
+    check_out_date: normalized.checkOutDate,
     adults: normalized.adults,
-    checkInDate: normalized.checkInDate,
-    checkOutDate: normalized.checkOutDate,
-    roomQuantity: normalized.roomQuantity,
-    currency: 'EUR',
-    bestRateOnly: 'true'
+    children: normalized.children || undefined
   });
 
-  const byId = new Map(hotels.map(hotel => [hotel.hotelId, hotel]));
-  const results = (offersJson?.data || []).map(item => {
-    const baseHotel = byId.get(item.hotel?.hotelId) || item.hotel || {};
-    const offer = item.offers?.[0];
-    return offer ? normalizeHotelOffer(baseHotel, offer, normalized.roomQuantity) : null;
-  }).filter(Boolean).filter(item => item.price > 0).sort((a, b) => a.price - b.price);
+  const results = (Array.isArray(json?.properties) ? json.properties : [])
+    .map((property, index) => normalizeHotel(property, normalized, index))
+    .filter(item => item.price > 0)
+    .sort((a, b) => a.price - b.price);
 
-  const mode = providerMode();
   return {
-    mode,
-    source: mode === 'live' ? 'amadeus' : 'amadeus-test',
-    live: mode === 'live',
+    mode: 'live',
+    source: 'serpapi-google-hotels',
+    live: true,
     query: normalized,
     results
   };
 }
 
 export function providerStatus() {
-  const mode = providerMode();
   return {
     configured: configured(),
-    mode,
-    provider: configured() ? 'amadeus' : 'demo',
-    host: configured() ? (env('AMADEUS_HOST') || DEFAULT_HOST) : null
+    mode: configured() ? 'live' : 'demo',
+    provider: configured() ? 'serpapi' : 'demo',
+    freePlanHint: '250 searches/month'
   };
 }
