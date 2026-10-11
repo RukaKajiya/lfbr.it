@@ -102,8 +102,9 @@ export const checkTravelPrices = onSchedule({
   timeoutSeconds: 300,
   memory: '512MiB'
 }, async () => {
-  if (!providerStatus().configured) {
-    console.log('Travel price monitor skipped: provider_not_configured');
+  const status = providerStatus();
+  if (status.mode !== 'live') {
+    console.log('Travel price monitor skipped: provider_not_production', status.mode);
     return;
   }
 
