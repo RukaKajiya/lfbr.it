@@ -24,6 +24,7 @@
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script defer src="app-data.js"></script>
 <script defer src="storage.js"></script>
+<script type="module" src="firebase-client.js"></script>
 <script defer src="script.js"></script>
 </head>
 <body>
@@ -37,6 +38,14 @@
     <a href="#planner">Crea viaggio</a>
     <a href="#how">Come funziona</a>
     <button class="ghost-btn" id="resumeTripBtn" type="button" hidden>Il mio viaggio</button>
+    <div class="auth-bar" id="authBar">
+      <button class="auth-btn" id="loginBtn" type="button">Accedi con Google</button>
+      <div class="user-menu" id="userMenu" hidden>
+        <span class="user-avatar" id="userAvatar">U</span>
+        <button class="ghost-btn" id="cloudTripsBtn" type="button">I miei viaggi</button>
+        <button class="ghost-btn" id="logoutBtn" type="button">Esci</button>
+      </div>
+    </div>
   </nav>
 </header>
 
@@ -51,9 +60,9 @@
       <button class="secondary-btn" id="surpriseStartBtn" type="button">Non so dove andare</button>
     </div>
     <div class="trust-row">
-      <span>✓ Nessun account richiesto</span>
-      <span>✓ Salvataggio sul dispositivo</span>
-      <span>✓ Firestore-ready</span>
+      <span>✓ Salvataggio locale e Cloud</span>
+      <span>✓ Google Auth</span>
+      <span>✓ Firebase Firestore attivo</span>
     </div>
   </div>
   <div class="hero-visual" aria-hidden="true">
@@ -161,7 +170,8 @@
   <div class="quick-actions">
     <button type="button" id="surpriseBtn">✨ Sorprendimi</button>
     <button type="button" id="relaxBtn">🌿 Rendilo più rilassato</button>
-    <button type="button" id="saveBtn">♡ Salva viaggio</button>
+    <button type="button" id="saveBtn">♡ Salva locale</button>
+    <button type="button" id="saveCloudBtn">☁ Salva su Firestore</button>
     <button type="button" id="newTripBtn">＋ Nuovo viaggio</button>
   </div>
 
@@ -192,8 +202,8 @@
 </section>
 
 <section class="roadmap">
-  <div><span class="eyebrow">Prossimo livello</span><h2>Pronta per Firebase.</h2></div>
-  <p>La V1 salva sul dispositivo. In seguito possiamo aggiungere account Google, Firestore, viaggi condivisi, voti tra compagni di viaggio e dati live da Google Places o altri provider.</p>
+  <div><span class="eyebrow">Firebase integrato</span><h2>Sincronizzazione Cloud attiva</h2></div>
+  <p>LFBR Travel è ora collegato al database Cloud Firestore e a Firebase Authentication. Puoi salvare i tuoi itinerari nel tuo account Google e ritrovarli su qualsiasi dispositivo in tempo reale.</p>
 </section>
 </main>
 
@@ -201,6 +211,18 @@
   <div><strong>LFBR Travel</strong><p>V1 · Planner sperimentale con dataset iniziale. Orari e prezzi dei luoghi sono indicativi.</p></div>
   <div><a href="chi-siamo.html">Come funziona</a><a href="privacy.html">Privacy</a><a href="cookie.html">Cookie</a></div>
 </footer>
+</div>
+
+<div class="cloud-modal" id="cloudModal" hidden>
+  <div class="cloud-modal-content">
+    <div class="cloud-modal-head">
+      <h3>I tuoi viaggi su Firebase</h3>
+      <button class="close-modal-btn" id="closeCloudModalBtn" type="button" aria-label="Chiudi">×</button>
+    </div>
+    <div id="cloudTripsList">
+      <p style="color:var(--muted);font-size:12px">Caricamento viaggi dal Cloud...</p>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

@@ -21,7 +21,10 @@
     resultsTitle:$("#resultsTitle"), recommendations:$("#recommendations"), trip:$("#tripSection"),
     tripTitle:$("#tripTitle"), tripSubtitle:$("#tripSubtitle"), tripScore:$("#tripScore"),
     dayTabs:$("#dayTabs"), dayLabel:$("#dayLabel"), dayTitle:$("#dayTitle"), dayBudget:$("#dayBudget"),
-    timeline:$("#timeline"), mapCaption:$("#mapCaption"), resume:$("#resumeTripBtn"), toast:$("#toast")
+    timeline:$("#timeline"), mapCaption:$("#mapCaption"), resume:$("#resumeTripBtn"), toast:$("#toast"),
+    loginBtn:$("#loginBtn"), userMenu:$("#userMenu"), userAvatar:$("#userAvatar"),
+    cloudTripsBtn:$("#cloudTripsBtn"), logoutBtn:$("#logoutBtn"), saveCloudBtn:$("#saveCloudBtn"),
+    cloudModal:$("#cloudModal"), closeCloudModalBtn:$("#closeCloudModalBtn"), cloudTripsList:$("#cloudTripsList")
   };
 
   function init(){
@@ -93,9 +96,100 @@
     $("#surpriseBtn").addEventListener("click",addSurpriseStop);
     $("#relaxBtn").addEventListener("click",relaxTrip);
     $("#saveBtn").addEventListener("click",()=>{if(!state.currentTrip)return;STORE.saveTrip(state.currentTrip);els.resume.hidden=false;toast("Viaggio salvato su questo dispositivo");});
+    els.saveCloudBtn.addEventListener("click",handleSaveCloud);
     els.resume.addEventListener("click",()=>{const trip=STORE.loadTrip();if(trip){state.currentTrip=trip;state.activeDay=0;renderTrip();els.trip.scrollIntoView({behavior:"smooth"});}});
     els.dayTabs.addEventListener("click",e=>{const b=e.target.closest("button[data-day]");if(!b)return;state.activeDay=Number(b.dataset.day);renderDay();});
     els.timeline.addEventListener("click",handleStopAction);
+
+    els.loginBtn.addEventListener("click",async()=>{
+      try {
+        if(!window.LFBRFirebase) return;
+        await window.LFBRFirebase.loginWithGoogle();
+        toast("Accesso effettuato con Google");
+      } catch(err) {
+        toast("Errore durante l'accesso: " + (err.message||"Riprova"));
+      }
+    });
+
+    els.logoutBtn.addEventListener("click",async()=>{
+      try {
+        if(!window.LFBRFirebase) return;
+        await window.LFBRFirebase.logoutUser();
+        toast("Disconnesso");
+      } catch(err) {
+        toast("Errore disconnessione");
+      }
+    });
+
+    els.cloudTripsBtn.addEventListener("click",openCloudModal);
+    els.closeCloudModalBtn.addEventListener("click",()=>els.cloudModal.hidden=true);
+
+    window.addEventListener("lfbr:auth-change",e=>{
+      const user = e.detail?.user;
+      if(user) {
+        els.loginBtn.hidden = true;
+        els.userMenu.hidden = false;
+        els.userAvatar.textContent = (user.displayName || user.email || "U")[0].toUpperCase();
+        els.userAvatar.title = user.displayName || user.email;
+      } else {
+        els.loginBtn.hidden = false;
+        els.userMenu.hidden = true;
+      }
+    });
+  }
+
+  async function handleSaveCloud(){
+    if(!state.currentTrip){toast("Nessun viaggio da salvare");return;}
+    if(!window.LFBRFirebase?.currentUser){
+      toast("Accedi con Google per salvare su Firebase Cloud");
+      try {
+        await window.LFBRFirebase.loginWithGoogle();
+      } catch(err){return;}
+    }
+    try {
+      const dest=DATA.destinations.find(d=>d.id===state.currentTrip.destinationId);
+      state.currentTrip.title = "Viaggio a " + (dest ? dest.name : state.currentTrip.destinationId);
+      await window.LFBRFirebase.saveTripToCloud(state.currentTrip);
+      toast("☁ Viaggio salvato con successo su Firebase Firestore!");
+    } catch(err) {
+      toast("Errore salvataggio Cloud: " + (err.message || "Riprova"));
+    }
+  }
+
+  async function openCloudModal(){
+    els.cloudModal.hidden = false;
+    els.cloudTripsList.innerHTML = '<p style="color:var(--muted);font-size:12px">Caricamento viaggi dal Cloud...</p>';
+    try {
+      const trips = await window.LFBRFirebase.loadUserTripsFromCloud();
+      if(!trips || trips.length === 0){
+        els.cloudTripsList.innerHTML = '<p style="color:var(--muted);font-size:12px">Nessun viaggio salvato nel Cloud. Crea un itinerario e salvalo con “Salva su Firestore”.</p>';
+        return;
+      }
+      els.cloudTripsList.innerHTML = trips.map((t, idx) => {
+        const dest = DATA.destinations.find(d => d.id === t.destinationId);
+        return '<div class="cloud-trip-item">' +
+          '<div>' +
+            '<h4>' + (dest ? dest.emoji + " " : "") + (t.title || ("Viaggio a " + t.destinationId)) + '</h4>' +
+            '<p>' + (t.itinerary?.length || 0) + ' giorni · Compatibilità: ' + (t.score || 0) + '%</p>' +
+          '</div>' +
+          '<button class="secondary-btn small" type="button" data-load-cloud="' + idx + '">Apri</button>' +
+        '</div>';
+      }).join("");
+
+      $$("[data-load-cloud]", els.cloudTripsList).forEach(btn => {
+        btn.addEventListener("click", () => {
+          const idx = Number(btn.dataset.loadCloud);
+          state.currentTrip = trips[idx];
+          state.activeDay = 0;
+          renderTrip();
+          els.cloudModal.hidden = true;
+          els.trip.scrollIntoView({behavior: "smooth"});
+          toast("Viaggio caricato da Firebase");
+        });
+      });
+    } catch(err) {
+      els.cloudTripsList.innerHTML = '<p style="color:#d93025;font-size:12px">Errore nel caricamento: ' + (err.message || 'Riprova') + '</p>';
+    }
   }
 
   function bindChoice(selector,key){

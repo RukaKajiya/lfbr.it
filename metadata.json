@@ -1,0 +1,8 @@
+{
+  "name": "LFBR Travel",
+  "description": "Crea un viaggio in base ai tuoi gusti, budget e ritmo. LFBR Travel suggerisce destinazioni, luoghi e itinerari personalizzati.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
