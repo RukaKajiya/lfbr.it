@@ -1,26 +1,87 @@
-# lfbr.it
+# LFBR Travel
 
-Magazine statico indipendente pubblicato con GitHub Pages, dominio https://lfbr.it.
+Web app per organizzare viaggi in base a gusti, budget, durata e ritmo. Il progetto non è più un sito editoriale: la home è il planner e il vecchio archivio articoli è escluso dalla navigazione e dai crawler.
 
-## Componenti editoriali
+## Funzioni attuali
 
-- `index.html` contiene l'archivio completo e i filtri originali.
-- `articles.json` alimenta la ricerca globale. È generato dall'archivio e dalle pagine articolo.
-- `ultimi.html` raccoglie solo articoli con `datePublished` nota, per data decrescente. Mostra 12 articoli alla volta; senza JavaScript rimangono tutti leggibili.
-- `feed.xml` include le ultime 30 pubblicazioni con data nota.
-- Il generatore applica breadcrumb, tempo di lettura (200 parole/minuto), In breve, correlati e metadati a tutti gli articoli. L'indice compare da 300 parole e quattro sezioni. Precedente/successivo segue l'elenco delle notizie datate; a parità di data l'ordine degli URL è deterministico.
-- Le guide senza data nota rimangono nell'archivio; non viene inventata una data di pubblicazione.
-- Favicon SVG e immagine social PNG sono presenti nel repository. `social-card.svg` è il sorgente della copertina condivisa.
+- planner in 4 passaggi;
+- modalità destinazione nota o consiglio destinazione;
+- profilo interessi con pesi;
+- punteggio di compatibilità;
+- itinerario fino a 30 giorni;
+- ritmo rilassato, equilibrato o intenso;
+- ordinamento delle tappe anche in base alla vicinanza;
+- calendario viaggio;
+- mappa Leaflet + OpenStreetMap;
+- riordino, rimozione e aggiunta "Sorprendimi";
+- salvataggio locale con localStorage;
+- Google Authentication;
+- sincronizzazione profilo e viaggi su Cloud Firestore;
+- area "I miei viaggi" con apertura, rinomina, duplicazione ed eliminazione;
+- stato viaggio: bozza, pianificato, in corso, concluso.
 
-## Aggiornamento manuale
+## Dati e persistenza
 
-1. Partire dall'ultima `main` e rileggere i file da modificare.
-2. Aggiungere l'articolo e la sua card all'archivio di `index.html`, con `data-category` e `data-topic`. Per le notizie aggiungere `datePublished` (e `dateModified` se nota) allo schema JSON-LD. Non duplicare gli URL.
-3. Aggiungere il nuovo URL alla sitemap. Mantenere il codice AdSense nella nuova pagina.
-4. Eseguire `python tools/build_site.py --updated YYYY-MM-DD` con la data effettiva della modifica. Il generatore non scrive alle automazioni editoriali.
-5. Eseguire `python tools/validate_site.py` e `node --check script.js`.
-6. Controllare layout e comportamento nel browser, compreso mobile.
+- `app-data.js`: dataset beta di destinazioni e luoghi.
+- `storage.js`: salvataggio locale.
+- `firebase-client.js`: Authentication e Firestore.
+- `firestore.rules`: accesso ai dati privati limitato al proprietario.
+- `firebase-applet-config.json`: configurazione pubblica del client Firebase.
+- `firebase.json`, `.firebaserc`, `firestore.indexes.json`: configurazione versionata per il deploy Firebase.
 
-Il generatore usa solo la libreria standard di Python. Rilegge ogni file esistente immediatamente prima di scriverlo. Mantiene testo degli articoli, fonti, AdSense, contenuto privacy/cookie e `ads.txt`. I componenti sono HTML statico, la ricerca e la paginazione sono in `script.js`.
+La configurazione Web Firebase contiene identificatori client pubblici e non deve contenere service-account key, password o altri segreti server-side.
 
-`lastmod` degli articoli usa `dateModified` o `datePublished` quando disponibili; le pagine di navigazione usano la data passata a `--updated`. Le guide con date ignote non ricevono date editoriali inventate.
+## Struttura dati Firestore
+
+### users/{uid}
+
+Campi principali:
+- id
+- email
+- displayName
+- travelProfile
+- profileUpdatedAt
+- createdAt
+- updatedAt
+
+### trips/{tripId}
+
+Campi principali:
+- id
+- ownerId
+- destinationId
+- title
+- score
+- profile
+- itinerary
+- isPublic
+- status
+- createdAt
+- updatedAt
+
+## Sviluppo locale
+
+```bash
+npm install
+npm run dev
+```
+
+Il server Express pubblica i file statici e usa `index.html` come fallback.
+
+## Controlli
+
+```bash
+npm run check
+```
+
+Prima di modificare file sincronizzati con AI Studio, leggere sempre l'ultima versione su `main`.
+
+## Firebase
+
+Le regole sono versionate nel repository. Se AI Studio non distribuisce automaticamente le regole dopo il sync GitHub, eseguire il deploy Firebase del progetto `lfbr-travel` oppure pubblicarle dalla console Firebase.
+
+Per l'accesso Google verificare che i domini usati dall'app siano presenti in Firebase Authentication > Settings > Authorized domains.
+
+## Limiti attuali della beta
+
+Il dataset turistico è ancora locale e selezionato manualmente. Costi, durate e descrizioni sono indicativi. Il prossimo passaggio architetturale è collegare un provider esterno per POI, orari e dati aggiornati, lasciando Firestore come database dei dati utente e dei viaggi.
