@@ -190,7 +190,7 @@
       <article class="overview-card"><span>🎟️</span><small>Attività</small><strong id="overviewActivities">—</strong><p>Costo indicativo delle tappe dell'itinerario.</p></article>
       <article class="overview-card total"><span>∑</span><small>Totale stimato</small><strong id="overviewTotal">—</strong><p>Volo + hotel + attività per i viaggiatori indicati.</p></article>
     </div>
-    <div class="provider-note"><span id="travelProviderBadge" class="provider-badge">Verifica provider…</span><p>I prezzi live dipendono dal provider configurato. Se il provider non è ancora collegato, i risultati vengono mostrati chiaramente come demo e non possono essere monitorati.</p></div>
+    <div class="provider-note"><span id="travelProviderBadge" class="provider-badge">Verifica provider…</span><p>Voli e hotel usano SerpApi con Google Flights e Google Hotels. Con il piano gratuito limitiamo il monitoraggio per non consumare troppo rapidamente le ricerche mensili.</p></div>
   </div>
 
   <div class="trip-panel" data-trip-panel="flights" hidden>
@@ -219,7 +219,7 @@
         <label><span>Check-in</span><input id="hotelCheckIn" type="date" required></label>
         <label><span>Check-out</span><input id="hotelCheckOut" type="date" required></label>
         <label><span>Adulti</span><input id="hotelAdults" type="number" min="1" max="9" value="2"></label>
-        <label><span>Camere</span><input id="hotelRooms" type="number" min="1" max="4" value="1"></label>
+        <label><span>Camere (preferenza)</span><input id="hotelRooms" type="number" min="1" max="4" value="1"></label>
         <label><span>Raggio</span><select id="hotelRadius"><option value="5">5 km</option><option value="10">10 km</option><option value="15" selected>15 km</option><option value="25">25 km</option></select></label>
         <button class="primary-btn booking-submit" type="submit">Cerca hotel</button>
       </form>
@@ -230,7 +230,7 @@
 
   <div class="trip-panel" data-trip-panel="prices" hidden>
     <div class="booking-shell">
-      <div class="booking-head"><div><span class="eyebrow">Monitoraggio prezzi</span><h3>Prezzi sotto controllo</h3><p>Il controllo automatico è previsto ogni 6 ore quando il provider live e la Cloud Function sono configurati.</p></div><button class="secondary-btn small" id="refreshWatchesBtn" type="button">Aggiorna elenco</button></div>
+      <div class="booking-head"><div><span class="eyebrow">Monitoraggio prezzi</span><h3>Prezzi sotto controllo</h3><p>Con il piano gratuito SerpApi il controllo automatico viene eseguito una volta al giorno e gestiamo al massimo 5 monitoraggi attivi per preservare il plafond mensile.</p></div><button class="secondary-btn small" id="refreshWatchesBtn" type="button">Aggiorna elenco</button></div>
       <div id="priceWatchesList"><div class="cloud-empty"><span>🔔</span><strong>Nessun monitoraggio caricato</strong><p>Accedi e aggiungi un volo o un hotel dai risultati live.</p></div></div>
     </div>
   </div>
