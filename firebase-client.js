@@ -16,6 +16,8 @@ import {
   collection,
   query,
   where,
+  orderBy,
+  limit,
   getDocs,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
@@ -195,6 +197,7 @@ export async function saveTripToCloud(tripData) {
     score: Math.max(0, Math.min(100, Number(tripData?.score) || 0)),
     profile: tripData?.profile || {},
     itinerary: Array.isArray(tripData?.itinerary) ? tripData.itinerary.slice(0, 30) : [],
+    travelQuotes: tripData?.travelQuotes && typeof tripData.travelQuotes === 'object' ? tripData.travelQuotes : {},
     isPublic: Boolean(tripData?.isPublic),
     status,
     updatedAt: serverTimestamp()
@@ -273,6 +276,101 @@ export async function duplicateTripToCloud(tripData) {
   return saveTripToCloud(copy);
 }
 
+
+export async function createPriceWatch(input) {
+  const user = await ensureSignedIn();
+  if (!input?.live) throw new Error('Puoi monitorare solo prezzi provenienti da una ricerca live.');
+
+  const ref = doc(collection(db, 'priceWatches'));
+  const price = Number(input.price);
+  if (!(price > 0)) throw new Error('Prezzo non valido.');
+
+  const alertMode = ['new_low', 'any_drop', 'below', 'drop_pct'].includes(input.alertMode)
+    ? input.alertMode
+    : 'new_low';
+
+  const payload = {
+    id: ref.id,
+    ownerId: user.uid,
+    ...(input.tripId ? { tripId: cleanText(input.tripId, 128) } : {}),
+    type: input.type === 'hotel' ? 'hotel' : 'flight',
+    label: cleanText(input.label || 'Monitoraggio prezzo', 160),
+    query: input.query && typeof input.query === 'object' ? input.query : {},
+    currency: cleanText(input.currency || 'EUR', 8),
+    initialPrice: price,
+    lastPrice: price,
+    bestPrice: price,
+    alertMode,
+    ...(Number(input.alertBelow) > 0 ? { alertBelow: Number(input.alertBelow) } : {}),
+    ...(Number(input.alertPercent) > 0 ? { alertPercent: Number(input.alertPercent) } : {}),
+    enabled: true,
+    live: true,
+    source: cleanText(input.source || 'provider', 40),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+
+  await setDoc(ref, payload);
+  return { ...payload, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+}
+
+export async function loadPriceWatches() {
+  const user = await ensureSignedIn();
+  const q = query(collection(db, 'priceWatches'), where('ownerId', '==', user.uid));
+  const snap = await getDocs(q);
+  const items = [];
+  snap.forEach(item => {
+    const data = item.data();
+    items.push({
+      ...data,
+      createdAtMs: timestampMillis(data.createdAt),
+      updatedAtMs: timestampMillis(data.updatedAt),
+      lastCheckedAtMs: timestampMillis(data.lastCheckedAt),
+      alertTriggeredAtMs: timestampMillis(data.alertTriggeredAt)
+    });
+  });
+  return items.sort((a, b) => (b.updatedAtMs || b.createdAtMs) - (a.updatedAtMs || a.createdAtMs));
+}
+
+export async function loadPriceSnapshots(watchId, max = 20) {
+  await ensureSignedIn();
+  const ref = collection(db, 'priceWatches', cleanText(watchId, 128), 'snapshots');
+  const q = query(ref, orderBy('checkedAt', 'desc'), limit(Math.max(1, Math.min(50, Number(max) || 20))));
+  const snap = await getDocs(q);
+  const items = [];
+  snap.forEach(item => {
+    const data = item.data();
+    items.push({ ...data, checkedAtMs: timestampMillis(data.checkedAt) });
+  });
+  return items.reverse();
+}
+
+export async function updatePriceWatch(watchId, changes) {
+  const user = await ensureSignedIn();
+  const ref = doc(db, 'priceWatches', cleanText(watchId, 128));
+  const snap = await getDoc(ref);
+  if (!snap.exists() || snap.data().ownerId !== user.uid) throw new Error('Monitoraggio non trovato.');
+
+  const patch = { updatedAt: serverTimestamp() };
+  if (typeof changes?.enabled === 'boolean') patch.enabled = changes.enabled;
+  if (changes?.label !== undefined) patch.label = cleanText(changes.label, 160);
+  if (['new_low', 'any_drop', 'below', 'drop_pct'].includes(changes?.alertMode)) patch.alertMode = changes.alertMode;
+  if (Number(changes?.alertBelow) > 0) patch.alertBelow = Number(changes.alertBelow);
+  if (Number(changes?.alertPercent) > 0) patch.alertPercent = Number(changes.alertPercent);
+
+  await setDoc(ref, patch, { merge: true });
+  return patch;
+}
+
+export async function deletePriceWatch(watchId) {
+  const user = await ensureSignedIn();
+  const ref = doc(db, 'priceWatches', cleanText(watchId, 128));
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  if (snap.data().ownerId !== user.uid) throw new Error('Non puoi eliminare questo monitoraggio.');
+  await deleteDoc(ref);
+}
+
 window.LFBRFirebase = {
   get app() { return app; },
   get auth() { return auth; },
@@ -288,7 +386,12 @@ window.LFBRFirebase = {
   renameTrip,
   updateTripStatus,
   deleteTripFromCloud,
-  duplicateTripToCloud
+  duplicateTripToCloud,
+  createPriceWatch,
+  loadPriceWatches,
+  loadPriceSnapshots,
+  updatePriceWatch,
+  deletePriceWatch
 };
 
 initPromise = initFirebase();
