@@ -54,3 +54,34 @@ button,input,select{font:inherit}.app-shell{max-width:1280px;margin:0 auto;paddi
 @media(max-width:720px){.app-shell{padding:0 15px}.app-header{min-height:66px}.main-nav a{display:none}.hero{padding:44px 0 56px}.hero h1{font-size:clamp(46px,14vw,70px)}.hero-copy>p{font-size:16px}.hero-visual{min-height:290px}.travel-card{width:132px;padding:13px}.travel-card strong{font-size:32px}.section-heading{align-items:flex-start;flex-direction:column}.planner-main{padding:20px;min-height:auto}.stepper{padding:10px;border-radius:18px}.step-dot{min-width:132px;grid-template-columns:32px 1fr}.step-dot span{width:32px;height:32px}.form-grid,.form-grid.three{grid-template-columns:1fr}.choice-row{grid-template-columns:1fr}.interest-grid{grid-template-columns:repeat(2,1fr)}.summary-card{grid-template-columns:1fr}.summary-item.full{grid-column:auto}.recommendations{grid-template-columns:1fr}.trip-hero{align-items:flex-start}.trip-hero h2{font-size:42px}.trip-score strong{font-size:44px}.stop-card{grid-template-columns:52px 1fr}.stop-actions{grid-column:2}.feature-grid{grid-template-columns:1fr}.roadmap{grid-template-columns:1fr;align-items:start}.app-footer{flex-direction:column}.map-panel{min-height:440px}.map-panel #tripMap{height:385px}}
 @media(max-width:430px){.interest-grid{grid-template-columns:1fr}.hero-actions .primary-btn,.hero-actions .secondary-btn{width:100%}.trust-row{display:grid;gap:7px}.trip-hero{display:grid;grid-template-columns:1fr}.trip-score{text-align:left}.trip-score strong{display:inline-block;margin-right:8px}.quick-actions{display:grid;grid-template-columns:1fr 1fr}.quick-actions button{width:100%}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important}}
+
+/* App polish 2026-10-11 */
+[hidden]{display:none!important}
+.field-help{display:block;margin-top:7px;color:#8a93a5;font-size:9px;line-height:1.4;text-transform:none;letter-spacing:0;font-weight:700}
+.trip-status-badge,.trip-status-chip{display:inline-flex;align-items:center;width:max-content;border-radius:999px;padding:6px 9px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;margin-top:10px}
+.trip-status-badge[data-status="planned"],.trip-status-chip[data-status="planned"]{background:#eaf0ff;color:#3156cc}
+.trip-status-badge[data-status="in_progress"],.trip-status-chip[data-status="in_progress"]{background:#e7f8ef;color:#167447}
+.trip-status-badge[data-status="completed"],.trip-status-chip[data-status="completed"]{background:#eef1f5;color:#5e6879}
+.trip-status-badge[data-status="draft"],.trip-status-chip[data-status="draft"]{background:#fff3d6;color:#8f6500}
+.day-tabs button{display:grid;gap:1px;place-items:center;min-width:66px}
+.day-tabs button span{font-size:10px;font-weight:900}.day-tabs button small{font-size:8px;font-weight:750;opacity:.7}
+.empty-day,.cloud-empty,.cloud-error,.cloud-loading{margin:14px 0;padding:26px;border-radius:18px;background:#f7f9fc;border:1px dashed #d8dfeb;text-align:center;color:var(--muted)}
+.empty-day span,.cloud-empty span{display:block;font-size:28px;margin-bottom:8px}
+.empty-day strong,.cloud-empty strong,.cloud-error strong{display:block;color:var(--ink);font-size:14px}
+.empty-day p,.cloud-empty p,.cloud-error p{margin:5px auto 0;max-width:360px;font-size:11px}
+.cloud-modal-content{max-width:680px}.cloud-modal-head{align-items:flex-start}.cloud-modal-head h3{margin:0}.cloud-modal-head p{margin:4px 0 0;color:var(--muted);font-size:10px}
+.cloud-trip-item{gap:14px}.cloud-trip-main{min-width:0;flex:1}.cloud-trip-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.cloud-trip-title-row>div{display:flex;align-items:center;gap:8px;min-width:0}.cloud-trip-emoji{font-size:20px;line-height:1}.cloud-trip-item h4{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cloud-trip-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.cloud-trip-actions button{min-width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:11px;font-weight:900;cursor:pointer}
+.cloud-trip-actions .primary-mini{padding:0 11px;background:var(--ink);color:#fff;border-color:var(--ink)}.cloud-trip-actions .danger-mini{color:#b42318}
+.cloud-trip-actions button:hover{border-color:#b7c1d1}.cloud-trip-actions .primary-mini:hover{background:#1b2536}
+.auth-btn:disabled,.quick-actions button:disabled{opacity:.5;cursor:wait}
+@media(max-width:720px){
+  .app-header{gap:10px}.main-nav{margin-left:auto;gap:6px}.main-nav>#resumeTripBtn{display:none}
+  .auth-btn{padding:8px 10px;font-size:10px}.user-menu{padding:3px 5px;gap:4px}
+  #cloudTripsBtn,#logoutBtn{width:32px;height:32px;padding:0;font-size:0;display:grid;place-items:center}
+  #cloudTripsBtn:before{content:"☁";font-size:13px}#logoutBtn:before{content:"↪";font-size:14px}
+  .cloud-modal{padding:10px;align-items:flex-end}.cloud-modal-content{max-height:88vh;border-radius:24px 24px 14px 14px;padding:20px}
+  .cloud-trip-item{align-items:flex-start;flex-direction:column}.cloud-trip-actions{width:100%}.cloud-trip-actions .primary-mini{flex:1}
+  .calendar-legend{align-items:flex-start;flex-direction:column;gap:7px}.calendar-cell{min-height:32px;font-size:11px}
+}
